@@ -82,4 +82,23 @@ describe('App', () => {
     expect(MockWebSocket.instances).toHaveLength(2)
     expect(screen.getByText('CONNECTING')).toBeInTheDocument()
   })
+
+  it('keeps only one game step in flight', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    const socket = MockWebSocket.instances[0]
+    socket.readyState = MockWebSocket.OPEN
+
+    act(() => {
+      socket.onopen?.()
+      vi.advanceTimersByTime(100)
+    })
+    expect(socket.send).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      socket.onmessage?.(new MessageEvent('message', { data: '{"type":"error","error":"done"}' }))
+      vi.advanceTimersByTime(20)
+    })
+    expect(socket.send).toHaveBeenCalledTimes(2)
+  })
 })

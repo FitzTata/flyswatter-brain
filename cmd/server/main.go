@@ -84,7 +84,7 @@ func connectNeuralController(ctx context.Context, logger *slog.Logger) *neural.C
 		StonkflySource: filepath.Join(root, "third_party", "stonkfly"),
 		DataDir:        envOr("STONKFLY_DATA", filepath.Join(root, ".local", "malecns")),
 		StartupTimeout: 2 * time.Minute,
-		StepDurationMS: game.DefaultConfig().StepSeconds * 1000,
+		StepDurationMS: 2,
 	})
 	if err == nil {
 		logger.Info("using MaleCNS controller")

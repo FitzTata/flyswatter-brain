@@ -119,7 +119,7 @@ $env:FLYSWATTER_CONTROLLER = "malecns"
 go run ./cmd/server
 ```
 
-Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker receives only a rendered RGB arena frame, advances 50 ms of model time, and maps DNp20/DNpe017 spike counts to the four game commands. This is an engineered interface, not a validated natural fly motor decoder. See [`THIRD_PARTY.md`](THIRD_PARTY.md) for attribution.
+Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker receives only a rendered RGB arena frame, advances 2 ms of model time per 20-ms game step at the original 0.1-ms integration timestep, and decodes DNp20/DNpe017 rates over a rolling 100-ms model-time window. This is an engineered interface, not a validated natural fly motor decoder. See [`THIRD_PARTY.md`](THIRD_PARTY.md) for attribution.
 
 ## Status
 

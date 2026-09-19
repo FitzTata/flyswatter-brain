@@ -37,10 +37,10 @@ func TestGameStep(t *testing.T) {
 		wantSpeed     float64
 		wantMinTravel float64
 	}{
-		{name: "straight", action: ActionStraight, wantHeading: 0, wantSpeed: 0.18, wantMinTravel: 0.008},
-		{name: "left", action: ActionTurnLeft, wantHeading: -math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.008},
-		{name: "right", action: ActionTurnRight, wantHeading: math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.008},
-		{name: "escape", action: ActionEscape, wantHeading: 0, wantSpeed: 0.432, wantMinTravel: 0.02},
+		{name: "straight", action: ActionStraight, wantHeading: 0, wantSpeed: 0.18, wantMinTravel: 0.003},
+		{name: "left", action: ActionTurnLeft, wantHeading: -math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.003},
+		{name: "right", action: ActionTurnRight, wantHeading: math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.003},
+		{name: "escape", action: ActionEscape, wantHeading: 0, wantSpeed: 0.432, wantMinTravel: 0.008},
 	}
 
 	for _, tt := range tests {
@@ -94,10 +94,10 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 	assert.True(t, held.Alive)
 	assert.False(t, held.Swatter.Attacking)
 	assert.Equal(t, uint64(2), held.Episode)
-	assert.Equal(t, int64(50), held.SurvivalMS)
+	assert.Equal(t, int64(20), held.SurvivalMS)
 	assert.True(t, next.Alive)
 	assert.Equal(t, uint64(2), next.Episode)
-	assert.Equal(t, int64(100), next.SurvivalMS)
+	assert.Equal(t, int64(40), next.SurvivalMS)
 }
 
 func TestGameRejectsInvalidInput(t *testing.T) {

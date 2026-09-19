@@ -51,7 +51,7 @@ function App() {
         <aside className="telemetry">
           <div className="panel-heading">
             <span>TELEMETRY</span>
-            <span>50 MS STEP</span>
+            <span>20MS / 2MS</span>
           </div>
 
           <Metric label="Episode" value={snapshot?.episode ?? '—'} />

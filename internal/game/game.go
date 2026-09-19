@@ -98,7 +98,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		StepSeconds:      0.05,
+		StepSeconds:      0.02,
 		FlySpeed:         0.18,
 		FlyRadius:        0.025,
 		SwatterRadius:    0.09,
@@ -153,6 +153,11 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	}
 
 	g.state.Swatter = swatter
+	if collides(g.state.Fly, g.state.Swatter) {
+		g.state.Tick++
+		g.state.Alive = false
+		return g.state, nil
+	}
 
 	action, err := g.controller.NextAction(ctx, Observation{
 		Tick:    g.state.Tick,

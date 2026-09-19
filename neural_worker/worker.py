@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from PIL import Image, ImageDraw
 
 FRAME_SIZE = (320, 180)
 THRESHOLD_HZ = 2.0
+READOUT_WINDOW_MS = 100
 
 
 def main() -> None:
@@ -26,6 +28,8 @@ def main() -> None:
     brain = VisualMemoryBrain()
     brain.weights_frozen = True
     decoder = Decoder(brain.ids, annotations(brain.ids), THRESHOLD_HZ)
+    history: deque[np.ndarray] = deque()
+    rolling_counts = np.zeros(brain.n, dtype=np.int64)
     send(
         {
             "type": "ready",
@@ -44,7 +48,13 @@ def main() -> None:
             frame = render_frame(request["observation"])
             started = time.perf_counter()
             counts, kernel_seconds = brain.rgb_step(frame, duration_ms, learning=False)
-            decoded = decoder.decode(counts, duration_ms / 1000)
+            history.append(counts)
+            rolling_counts += counts
+            max_samples = max(1, round(READOUT_WINDOW_MS / duration_ms))
+            while len(history) > max_samples:
+                rolling_counts -= history.popleft()
+            window_ms = duration_ms * len(history)
+            decoded = decoder.decode(rolling_counts, window_ms / 1000)
             send(
                 {
                     "type": "decision",
@@ -52,8 +62,8 @@ def main() -> None:
                     "neural_activity": activity(
                         brain,
                         decoder,
-                        counts,
-                        duration_ms,
+                        rolling_counts,
+                        window_ms,
                         decoded,
                         kernel_seconds,
                         time.perf_counter() - started,
