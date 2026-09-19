@@ -1,0 +1,382 @@
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 42px 0;
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.eyebrow,
+.panel-heading,
+.coordinates,
+.connection,
+.metric span,
+.action-readout span,
+.disclosure {
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0;
+  font-family: 'Space Grotesk', Arial, sans-serif;
+  font-size: clamp(36px, 6vw, 78px);
+  line-height: 0.92;
+  letter-spacing: -0.065em;
+}
+
+h1 span {
+  color: var(--acid);
+  font-weight: 500;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: rgba(16, 21, 17, 0.82);
+}
+
+.connection span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.connection--connected {
+  color: var(--acid);
+}
+
+.connection--connected span {
+  background: var(--acid);
+  box-shadow: 0 0 14px rgba(199, 255, 84, 0.8);
+}
+
+.connection--disconnected {
+  color: var(--orange);
+}
+
+.connection--disconnected span {
+  background: var(--orange);
+}
+
+.experiment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 286px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+}
+
+.arena-panel {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 15px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.coordinates {
+  color: rgba(199, 255, 84, 0.7);
+}
+
+.canvas-frame {
+  position: relative;
+  min-height: 520px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(8, 14, 9, 0.35), rgba(8, 14, 9, 0.35)),
+    radial-gradient(circle at center, #172018, #0b100c 68%);
+}
+
+.canvas-frame::before,
+.canvas-frame::after {
+  position: absolute;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  content: '';
+  pointer-events: none;
+}
+
+.canvas-frame::before {
+  top: 12px;
+  left: 12px;
+  border-top: 1px solid var(--acid);
+  border-left: 1px solid var(--acid);
+}
+
+.canvas-frame::after {
+  right: 12px;
+  bottom: 12px;
+  border-right: 1px solid var(--acid);
+  border-bottom: 1px solid var(--acid);
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.canvas-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--acid);
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+.canvas-placeholder::before {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 10px;
+  border: 1px solid var(--acid);
+  border-top-color: transparent;
+  border-radius: 50%;
+  content: '';
+  animation: spin 1s linear infinite;
+}
+
+.canvas-placeholder small {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.canvas-instruction {
+  position: absolute;
+  bottom: 16px;
+  left: 20px;
+  padding: 7px 9px;
+  color: #080b09;
+  background: var(--acid);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.telemetry {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.metric span {
+  color: var(--muted);
+}
+
+.metric strong {
+  font-family: 'Space Grotesk', Arial, sans-serif;
+  font-size: 25px;
+  font-weight: 600;
+}
+
+.metric .metric__warning {
+  color: var(--orange);
+  font-family: 'IBM Plex Mono', Consolas, monospace;
+  font-size: 14px;
+}
+
+.action-readout {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.action-readout span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.action-readout strong {
+  color: var(--acid);
+  font-family: 'Space Grotesk', Arial, sans-serif;
+  font-size: 27px;
+  letter-spacing: -0.03em;
+}
+
+.life-state {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: auto 16px 16px;
+  padding: 14px;
+  color: var(--acid);
+  border: 1px solid rgba(199, 255, 84, 0.24);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.life-state__pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--acid);
+  box-shadow: 0 0 14px rgba(199, 255, 84, 0.7);
+}
+
+.life-state--hit {
+  color: var(--orange);
+  border-color: rgba(255, 112, 67, 0.35);
+}
+
+.life-state--hit .life-state__pulse {
+  background: var(--orange);
+  box-shadow: 0 0 14px rgba(255, 112, 67, 0.7);
+}
+
+.error-message {
+  margin: 0 16px 16px;
+  color: var(--orange);
+  font-size: 11px;
+}
+
+.disclosure {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 0;
+  color: var(--muted);
+}
+
+.disclosure p {
+  max-width: 760px;
+  margin: 0;
+  letter-spacing: 0;
+  line-height: 1.55;
+  text-transform: none;
+}
+
+.disclosure > span:first-child {
+  color: var(--acid);
+}
+
+.disclosure > span:last-child {
+  color: var(--orange);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    width: min(100% - 24px, 680px);
+    padding-top: 24px;
+  }
+
+  .masthead {
+    align-items: flex-start;
+  }
+
+  .experiment {
+    grid-template-columns: 1fr;
+  }
+
+  .arena-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .canvas-frame,
+  .game-canvas {
+    min-height: 430px;
+  }
+
+  .telemetry {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .telemetry .panel-heading,
+  .action-readout,
+  .life-state,
+  .error-message {
+    grid-column: 1 / -1;
+  }
+
+  .life-state {
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .masthead {
+    display: block;
+  }
+
+  .connection {
+    width: max-content;
+    margin-top: 18px;
+  }
+
+  .coordinates {
+    display: none;
+  }
+
+  .canvas-frame,
+  .game-canvas {
+    min-height: 360px;
+  }
+
+  .disclosure {
+    grid-template-columns: 28px 1fr;
+  }
+
+  .disclosure > span:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-placeholder::before {
+    animation: none;
+  }
+}

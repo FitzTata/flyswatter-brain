@@ -81,6 +81,27 @@ WebSocket sessions start with a snapshot. The client then sends input messages:
 
 Each valid input advances the authoritative game by one fixed step and returns the next snapshot.
 
+## MVP frontend
+
+Start the backend, then run the browser client in another terminal:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`, move the pointer to aim the flyswatter, and hold the primary button to strike.
+
+Run the frontend checks:
+
+```sh
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
 ## Status
 
-The random-controller backend is implemented. The browser client and MaleCNS worker are not connected yet. The implementation plan is available in [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md).
+The interactive random-controller baseline is implemented. The MaleCNS worker is not connected yet. The implementation plan is available in [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md).
