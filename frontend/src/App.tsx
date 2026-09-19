@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { GameCanvas } from './GameCanvas'
+import { NeuralGraph } from './NeuralGraph'
 import type { GameInput } from './types'
 import { useGameSocket } from './useGameSocket'
 
@@ -67,6 +68,8 @@ function App() {
             <span>LAST COMMAND</span>
             <strong>{formatAction(snapshot?.last_action)}</strong>
           </div>
+
+          <NeuralGraph activity={snapshot?.neural_activity} action={snapshot?.last_action} />
 
           <div className={`life-state ${snapshot?.alive === false ? 'life-state--hit' : ''}`}>
             <span className="life-state__pulse" />

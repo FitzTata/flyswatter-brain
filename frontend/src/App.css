@@ -239,6 +239,102 @@ h1 span {
   letter-spacing: -0.03em;
 }
 
+.neural-graph {
+  min-height: 222px;
+  padding: 13px 12px 9px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 80% 45%, rgba(199, 255, 84, 0.05), transparent 38%),
+    #0a0f0b;
+}
+
+.neural-graph__heading,
+.neural-graph__footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.neural-graph__heading span:first-child {
+  color: var(--acid);
+}
+
+.neural-graph svg {
+  display: block;
+  width: 100%;
+}
+
+.neural-graph__edges line {
+  stroke: var(--acid);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 4;
+  transition: opacity 160ms ease;
+}
+
+.neural-graph__node {
+  transition: opacity 160ms ease;
+}
+
+.neural-graph__node circle {
+  fill: rgba(199, 255, 84, 0.18);
+  stroke: var(--acid);
+  stroke-width: 1.2;
+  transition: r 160ms ease;
+}
+
+.neural-graph__node--active circle {
+  fill: var(--acid);
+  filter: drop-shadow(0 0 7px rgba(199, 255, 84, 0.75));
+  animation: neuron-pulse 700ms ease-in-out infinite alternate;
+}
+
+.neural-graph__node text,
+.neural-graph__command text {
+  fill: #dce6dd;
+  font-family: 'IBM Plex Mono', Consolas, monospace;
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  text-anchor: middle;
+}
+
+.neural-graph__node-id,
+.neural-graph__node-rate {
+  fill: var(--muted) !important;
+  font-size: 7px !important;
+}
+
+.neural-graph__command circle {
+  fill: rgba(255, 112, 67, 0.08);
+  stroke: var(--orange);
+  stroke-width: 1.2;
+  filter: drop-shadow(0 0 7px rgba(255, 112, 67, 0.22));
+}
+
+.neural-graph__command-value {
+  fill: var(--orange) !important;
+  font-size: 9px !important;
+  font-weight: 600;
+}
+
+.neural-graph__footer {
+  color: rgba(199, 255, 84, 0.58);
+}
+
+.neural-graph--offline {
+  display: flex;
+  flex-direction: column;
+}
+
+.neural-graph--offline p {
+  margin: auto;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
 .life-state {
   display: flex;
   align-items: center;
@@ -306,6 +402,12 @@ h1 span {
   }
 }
 
+@keyframes neuron-pulse {
+  to {
+    filter: drop-shadow(0 0 12px rgba(199, 255, 84, 0.95));
+  }
+}
+
 @media (max-width: 860px) {
   .app-shell {
     width: min(100% - 24px, 680px);
@@ -337,6 +439,7 @@ h1 span {
 
   .telemetry .panel-heading,
   .action-readout,
+  .neural-graph,
   .life-state,
   .error-message {
     grid-column: 1 / -1;
@@ -376,7 +479,8 @@ h1 span {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .canvas-placeholder::before {
+  .canvas-placeholder::before,
+  .neural-graph__node--active circle {
     animation: none;
   }
 }
