@@ -25,6 +25,15 @@ describe('App', () => {
   beforeEach(() => {
     MockWebSocket.instances = []
     vi.stubGlobal('WebSocket', MockWebSocket)
+    window.history.replaceState({}, '', '/')
+  })
+
+  it('uses the requested persistent session', () => {
+    window.history.replaceState({}, '', '/?session=demo')
+
+    render(<App />)
+
+    expect(MockWebSocket.instances[0].url).toContain('/ws?session=demo')
   })
 
   it('renders live backend telemetry', () => {

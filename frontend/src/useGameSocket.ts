@@ -95,9 +95,13 @@ export function useGameSocket(input: GameInput): GameSocketState {
 }
 
 function websocketURL(): string {
-  if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL
-  }
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${protocol}://${window.location.hostname}:8080/ws`
+  const baseURL = import.meta.env.VITE_WS_URL || `${protocol}://${window.location.hostname}:8080/ws`
+  const session = new URLSearchParams(window.location.search).get('session')
+  if (!session) {
+    return baseURL
+  }
+  const url = new URL(baseURL)
+  url.searchParams.set('session', session)
+  return url.toString()
 }

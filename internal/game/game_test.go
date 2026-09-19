@@ -145,6 +145,44 @@ func TestGameRejectsInvalidInput(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidInput)
 }
 
+func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
+	t.Parallel()
+
+	instance := New(DefaultConfig(), fixedController{action: ActionStraight})
+	checkpoint := Snapshot{
+		Tick:       42,
+		Episode:    3,
+		Alive:      true,
+		SurvivalMS: 840,
+		LastAction: ActionTurnLeft,
+		Fly:        Fly{Position: Vec2{X: 0.3, Y: 0.4}, Heading: 1, Speed: 0.28, Radius: 0.025},
+		Swatter:    Swatter{Position: Vec2{X: 0.8, Y: 0.2}, Radius: 0.09, Attacking: true},
+		NeuralActivity: &NeuralActivity{
+			Model: "stale",
+		},
+	}
+
+	err := instance.Restore(checkpoint)
+	restored := instance.Snapshot()
+
+	require.NoError(t, err)
+	assert.Equal(t, uint64(42), restored.Tick)
+	assert.Equal(t, uint64(3), restored.Episode)
+	assert.Equal(t, checkpoint.Fly, restored.Fly)
+	assert.False(t, restored.Swatter.Attacking)
+	assert.Nil(t, restored.NeuralActivity)
+}
+
+func TestGameRejectsInvalidCheckpoint(t *testing.T) {
+	t.Parallel()
+
+	instance := New(DefaultConfig(), fixedController{action: ActionStraight})
+
+	err := instance.Restore(Snapshot{})
+
+	require.ErrorIs(t, err, ErrInvalidCheckpoint)
+}
+
 func TestRandomControllerIsDeterministic(t *testing.T) {
 	t.Parallel()
 

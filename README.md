@@ -108,6 +108,12 @@ Run all Go, TypeScript, and Python linters from the repository root:
 .\scripts\lint.ps1
 ```
 
+## Session persistence
+
+Every accepted input updates an atomic game checkpoint and an append-only replay log under `runs/<session>/`. The browser uses the `default` session; open `/?session=<name>` to keep a separate run. Set `FLYSWATTER_RUNS_DIR` to move the storage directory.
+
+On reconnect or server restart, the backend restores the episode, tick, survival time, and entity positions. MaleCNS runtime state is deliberately not part of this checkpoint: the worker starts clean, and the UI waits for fresh neural telemetry instead of displaying saved activity as live data.
+
 ## MaleCNS controller
 
 The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires Python 3.14 and a C++17 compiler, downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:

@@ -15,6 +15,7 @@ import (
 	"github.com/FitzTata/flyswatter-brain/internal/api"
 	"github.com/FitzTata/flyswatter-brain/internal/game"
 	"github.com/FitzTata/flyswatter-brain/internal/neural"
+	"github.com/FitzTata/flyswatter-brain/internal/persistence"
 )
 
 func main() {
@@ -35,7 +36,7 @@ func main() {
 			return game.New(game.DefaultConfig(), neuralController)
 		}
 		return game.New(game.DefaultConfig(), game.NewRandomController(seed))
-	})
+	}).WithStore(persistence.NewFileStore(envOr("FLYSWATTER_RUNS_DIR", "runs")))
 
 	httpServer := &http.Server{
 		Addr:              address(),

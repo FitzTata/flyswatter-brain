@@ -16,8 +16,9 @@ const (
 )
 
 var (
-	ErrInvalidAction = errors.New("invalid controller action")
-	ErrInvalidInput  = errors.New("invalid game input")
+	ErrInvalidAction     = errors.New("invalid controller action")
+	ErrInvalidInput      = errors.New("invalid game input")
+	ErrInvalidCheckpoint = errors.New("invalid game checkpoint")
 )
 
 type Vec2 struct {
@@ -132,6 +133,23 @@ func New(config Config, controller Controller) *Game {
 
 func (g *Game) Snapshot() Snapshot {
 	return g.state
+}
+
+func (g *Game) Restore(snapshot Snapshot) error {
+	if snapshot.Episode == 0 ||
+		snapshot.SurvivalMS < 0 ||
+		!validAction(snapshot.LastAction) ||
+		!validEntity(snapshot.Fly.Position, snapshot.Fly.Radius, snapshot.Fly.Speed) ||
+		!validEntity(snapshot.Swatter.Position, snapshot.Swatter.Radius, 0) ||
+		!isFinite(snapshot.Fly.Heading) {
+		return ErrInvalidCheckpoint
+	}
+
+	snapshot.Swatter.Attacking = false
+	snapshot.NeuralActivity = nil
+	g.state = snapshot
+	g.attackHeld = false
+	return nil
 }
 
 func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
@@ -262,14 +280,23 @@ func validAction(action Action) bool {
 }
 
 func validPosition(position Vec2) bool {
-	return !math.IsNaN(position.X) &&
-		!math.IsNaN(position.Y) &&
-		!math.IsInf(position.X, 0) &&
-		!math.IsInf(position.Y, 0)
+	return isFinite(position.X) && isFinite(position.Y)
 }
 
 func validAspectRatio(value float64) bool {
-	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+	return value >= 0 && isFinite(value)
+}
+
+func validEntity(position Vec2, radius, speed float64) bool {
+	return validPosition(position) &&
+		position.X >= 0 && position.X <= 1 &&
+		position.Y >= 0 && position.Y <= 1 &&
+		radius > 0 && isFinite(radius) &&
+		speed >= 0 && isFinite(speed)
+}
+
+func isFinite(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func clamp(value, minValue, maxValue float64) float64 {
