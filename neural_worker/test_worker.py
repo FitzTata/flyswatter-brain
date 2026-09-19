@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from worker import FRAME_SIZE, action_from_decode, render_frame
+from frame import FRAME_SIZE, action_from_decode, render_frame
 
 
 @pytest.mark.parametrize(
