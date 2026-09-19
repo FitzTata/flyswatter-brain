@@ -102,6 +102,12 @@ npm test
 npm run build
 ```
 
+Run all Go, TypeScript, and Python linters from the repository root:
+
+```powershell
+.\scripts\lint.ps1
+```
+
 ## MaleCNS controller
 
 The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires Python 3.14 and a C++17 compiler, downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:

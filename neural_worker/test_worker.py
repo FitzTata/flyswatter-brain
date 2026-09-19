@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from worker import FRAME_SIZE, action_from_decode, render_frame
 
 
