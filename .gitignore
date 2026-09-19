@@ -13,6 +13,7 @@
 *.db
 *.sqlite
 *.jsonl
+/BACKLOG.local.md
 
 # Environment and credentials
 .env
