@@ -110,14 +110,7 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	if !validPosition(input.SwatterPosition) {
 		return Snapshot{}, ErrInvalidInput
 	}
-	if !g.state.Alive {
-		g.state.Episode++
-		g.state.Alive = true
-		g.state.SurvivalMS = 0
-		g.resetFly()
-	}
-
-	g.state.Swatter = Swatter{
+	swatter := Swatter{
 		Position: Vec2{
 			X: clamp(input.SwatterPosition.X, 0, 1),
 			Y: clamp(input.SwatterPosition.Y, 0, 1),
@@ -125,6 +118,19 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 		Radius:    g.config.SwatterRadius,
 		Attacking: input.Attacking,
 	}
+	if !g.state.Alive {
+		g.state.Swatter = swatter
+		if input.Attacking {
+			g.state.Tick++
+			return g.state, nil
+		}
+		g.state.Episode++
+		g.state.Alive = true
+		g.state.SurvivalMS = 0
+		g.resetFly()
+	}
+
+	g.state.Swatter = swatter
 
 	action, err := g.controller.NextAction(ctx, Observation{
 		Tick:    g.state.Tick,

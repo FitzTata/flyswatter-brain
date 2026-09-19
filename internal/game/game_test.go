@@ -69,6 +69,11 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 		Attacking:       true,
 	})
 	require.NoError(t, err)
+	held, err := instance.Step(context.Background(), Input{
+		SwatterPosition: hitPosition,
+		Attacking:       true,
+	})
+	require.NoError(t, err)
 	next, err := instance.Step(context.Background(), Input{
 		SwatterPosition: Vec2{},
 	})
@@ -77,6 +82,9 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, hit.Alive)
 	assert.Equal(t, uint64(1), hit.Episode)
+	assert.False(t, held.Alive)
+	assert.Equal(t, uint64(1), held.Episode)
+	assert.Equal(t, hit.SurvivalMS, held.SurvivalMS)
 	assert.True(t, next.Alive)
 	assert.Equal(t, uint64(2), next.Episode)
 	assert.Equal(t, int64(50), next.SurvivalMS)

@@ -39,6 +39,7 @@ Object.defineProperty(HTMLCanvasElement.prototype, 'getBoundingClientRect', {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })

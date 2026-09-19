@@ -66,4 +66,20 @@ describe('App', () => {
     expect(screen.getByText('1.25 S')).toBeInTheDocument()
     expect(screen.getByText('TURN LEFT')).toBeInTheDocument()
   })
+
+  it('reconnects after the socket closes', () => {
+    vi.useFakeTimers()
+    render(<App />)
+
+    act(() => {
+      MockWebSocket.instances[0].onclose?.()
+    })
+    expect(screen.getByText('DISCONNECTED')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(MockWebSocket.instances).toHaveLength(2)
+    expect(screen.getByText('CONNECTING')).toBeInTheDocument()
+  })
 })

@@ -22,40 +22,54 @@ export function useGameSocket(input: GameInput): GameSocketState {
   }, [input])
 
   useEffect(() => {
-    const socket = new WebSocket(websocketURL())
+    let active = true
+    let socket: WebSocket | null = null
+    let reconnectTimer: number | undefined
 
-    socket.onopen = () => {
-      setState((current) => ({ ...current, status: 'connected', error: null }))
-    }
-    socket.onmessage = (event) => {
-      const message = decodeServerMessage(String(event.data))
-      if (!message) {
-        setState((current) => ({ ...current, error: 'Invalid server response' }))
-        return
+    const connect = () => {
+      setState((current) => ({ ...current, status: 'connecting' }))
+      socket = new WebSocket(websocketURL())
+
+      socket.onopen = () => {
+        setState((current) => ({ ...current, status: 'connected', error: null }))
       }
-      if (message.type === 'error') {
-        setState((current) => ({ ...current, error: message.error }))
-        return
+      socket.onmessage = (event) => {
+        const message = decodeServerMessage(String(event.data))
+        if (!message) {
+          setState((current) => ({ ...current, error: 'Invalid server response' }))
+          return
+        }
+        if (message.type === 'error') {
+          setState((current) => ({ ...current, error: message.error }))
+          return
+        }
+        setState((current) => ({ ...current, snapshot: message.snapshot, error: null }))
       }
-      setState((current) => ({ ...current, snapshot: message.snapshot, error: null }))
+      socket.onerror = () => {
+        setState((current) => ({ ...current, error: 'WebSocket connection failed' }))
+      }
+      socket.onclose = () => {
+        if (!active) {
+          return
+        }
+        setState((current) => ({ ...current, status: 'disconnected' }))
+        reconnectTimer = window.setTimeout(connect, 1000)
+      }
     }
-    socket.onerror = () => {
-      setState((current) => ({ ...current, error: 'WebSocket connection failed' }))
-    }
-    socket.onclose = () => {
-      setState((current) => ({ ...current, status: 'disconnected' }))
-    }
+    connect()
 
     const interval = window.setInterval(() => {
-      if (socket.readyState !== WebSocket.OPEN) {
+      if (socket?.readyState !== WebSocket.OPEN) {
         return
       }
       socket.send(JSON.stringify({ type: 'input', input: inputRef.current }))
     }, stepIntervalMS)
 
     return () => {
+      active = false
       window.clearInterval(interval)
-      socket.close()
+      window.clearTimeout(reconnectTimer)
+      socket?.close()
     }
   }, [])
 
