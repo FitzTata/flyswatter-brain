@@ -125,13 +125,13 @@ On reconnect or server restart, the backend restores the episode, tick, survival
 
 ## MaleCNS controller
 
-The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires Python 3.14 and a C++17 compiler, downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:
+The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires [uv](https://docs.astral.sh/uv/), Python 3.14, and a C++17 compiler. It downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup_neural.ps1
 ```
 
-The downloaded dataset, compiled kernel, and Python environment remain under ignored local directories.
+The script creates `.venv-neural` with `uv`, installs `neural_worker` dependencies from the locked `pyproject.toml`, and prepares MaleCNS data. The downloaded dataset, compiled kernel, and Python environment remain under ignored local directories.
 
 The server uses `auto` mode by default: it starts MaleCNS when the worker is ready and otherwise reports the error and falls back to the seeded random controller. To require MaleCNS and fail instead of falling back:
 

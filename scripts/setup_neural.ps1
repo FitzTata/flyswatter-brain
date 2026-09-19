@@ -3,6 +3,21 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+    [Environment]::GetEnvironmentVariable('Path', 'User')
+
+if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    winget install `
+        --id astral-sh.uv `
+        --exact `
+        --scope user `
+        --accept-package-agreements `
+        --accept-source-agreements `
+        --silent
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+        [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
 git submodule update --init --recursive
 
 if (-not (Get-Command c++ -ErrorAction SilentlyContinue)) {
@@ -18,11 +33,14 @@ if (-not (Get-Command c++ -ErrorAction SilentlyContinue)) {
 }
 
 if (-not (Test-Path '.venv-neural\Scripts\python.exe')) {
-    python -m venv .venv-neural
+    uv venv .venv-neural --python 3.14
 }
 
-.\.venv-neural\Scripts\python.exe -m pip install --upgrade pip
-.\.venv-neural\Scripts\python.exe -m pip install -r neural_worker\requirements.txt
+$env:UV_PROJECT_ENVIRONMENT = (Resolve-Path '.venv-neural')
+uv sync --project neural_worker --frozen
+if ($LASTEXITCODE -ne 0) {
+    uv sync --project neural_worker
+}
 
 $env:PYTHONPATH = (Resolve-Path 'third_party\stonkfly')
 $env:STONKFLY_DATA = Join-Path $root '.local\malecns'
