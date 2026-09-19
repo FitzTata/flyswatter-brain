@@ -1,0 +1,26 @@
+# Go
+/bin/
+*.exe
+*.test
+*.out
+
+# Node
+/frontend/node_modules/
+/frontend/dist/
+
+# Runtime data
+/runs/
+*.db
+*.sqlite
+*.jsonl
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
