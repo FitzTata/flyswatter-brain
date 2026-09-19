@@ -5,14 +5,18 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/FitzTata/flyswatter-brain/internal/game"
+	"github.com/FitzTata/flyswatter-brain/internal/neural"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 )
 
-type GameFactory func(seed int64) *game.Game
+type GameFactory func(seed int64, mode neural.Mode) (*game.Game, error)
 
 type SessionStore interface {
 	Load(context.Context, string) (game.Snapshot, bool, error)
@@ -24,6 +28,12 @@ type Server struct {
 	factory GameFactory
 	store   SessionStore
 	seed    atomic.Int64
+	players sync.Map
+}
+
+type playerSession struct {
+	conn *websocket.Conn
+	gen  uint64
 }
 
 type clientMessage struct {
@@ -36,6 +46,8 @@ type serverMessage struct {
 	Snapshot *game.Snapshot `json:"snapshot,omitempty"`
 	Error    string         `json:"error,omitempty"`
 }
+
+var playerIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 func NewServer(logger *slog.Logger, factory GameFactory) *Server {
 	return &Server{
@@ -62,21 +74,42 @@ func (s *Server) health(writer http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
-	session := request.URL.Query().Get("session")
-	if session == "" {
-		session = "default"
+	query := request.URL.Query()
+	playerID := strings.TrimSpace(query.Get("session"))
+	if playerID == "" {
+		playerID = strings.TrimSpace(query.Get("player"))
 	}
-	currentGame := s.factory(s.seed.Add(1))
+	if playerID == "" {
+		http.Error(writer, "player required", http.StatusBadRequest)
+		return
+	}
+	playerID = strings.ToLower(playerID)
+	if !playerIDPattern.MatchString(playerID) {
+		http.Error(writer, "invalid player", http.StatusBadRequest)
+		return
+	}
+	mode, err := neural.ParseMode(query.Get("mode"))
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	currentGame, err := s.factory(s.seed.Add(1), mode)
+	if err != nil {
+		s.logger.Error("create game", "player", playerID, "mode", mode, "error", err)
+		http.Error(writer, "create game", http.StatusInternalServerError)
+		return
+	}
 	if s.store != nil {
-		snapshot, found, err := s.store.Load(request.Context(), session)
+		snapshot, found, err := s.store.Load(request.Context(), playerID)
 		if err != nil {
-			s.logger.Error("load session", "session", session, "error", err)
+			s.logger.Error("load session", "session", playerID, "error", err)
 			http.Error(writer, "load session", http.StatusInternalServerError)
 			return
 		}
 		if found {
 			if err := currentGame.Restore(snapshot); err != nil {
-				s.logger.Error("restore session", "session", session, "error", err)
+				s.logger.Error("restore session", "session", playerID, "error", err)
 				http.Error(writer, "restore session", http.StatusInternalServerError)
 				return
 			}
@@ -90,14 +123,28 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 		s.logger.Error("accept websocket", "error", err)
 		return
 	}
-	defer connection.CloseNow()
 	connection.SetReadLimit(4 * 1024)
+
+	gen := uint64(s.seed.Add(1))
+	if previous, loaded := s.players.Swap(playerID, &playerSession{conn: connection, gen: gen}); loaded {
+		if old, ok := previous.(*playerSession); ok && old.conn != nil {
+			_ = old.conn.Close(websocket.StatusPolicyViolation, "session_replaced")
+		}
+	}
+	defer func() {
+		if current, ok := s.players.Load(playerID); ok {
+			if entry, ok := current.(*playerSession); ok && entry.gen == gen {
+				s.players.Delete(playerID)
+			}
+		}
+		_ = connection.CloseNow()
+	}()
 
 	if err := writeSnapshot(request.Context(), connection, currentGame.Snapshot()); err != nil {
 		return
 	}
 
-	s.logger.Info("session connected", "session_id", session)
+	s.logger.Info("session connected", "session_id", playerID, "mode", mode)
 
 	for {
 		var message clientMessage
@@ -111,6 +158,7 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 			continue
 		}
 
+		wasAlive := currentGame.Snapshot().Alive
 		snapshot, err := currentGame.Step(request.Context(), message.Input)
 		if err != nil {
 			if err := writeError(request.Context(), connection, err.Error()); err != nil {
@@ -118,9 +166,12 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 			}
 			continue
 		}
+		if wasAlive && !snapshot.Alive {
+			currentGame.ReportDeath()
+		}
 		if s.store != nil {
-			if err := s.store.Save(request.Context(), session, message.Input, snapshot); err != nil {
-				s.logger.Error("save session", "session", session, "error", err)
+			if err := s.store.Save(request.Context(), playerID, message.Input, snapshot); err != nil {
+				s.logger.Error("save session", "session", playerID, "error", err)
 				_ = writeError(request.Context(), connection, "save session")
 				return
 			}

@@ -1,8 +1,16 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import './App.css'
 import { UI_CONFIG } from './config'
 import { GameCanvas } from './GameCanvas'
 import { NeuralGraph } from './NeuralGraph'
+import {
+  loadMode,
+  loadPlayer,
+  saveMode,
+  savePlayer,
+  type ControllerMode,
+  type PlayerIdentity,
+} from './player'
 import type { GameInput } from './types'
 import { useGameSocket } from './useGameSocket'
 
@@ -14,10 +22,46 @@ const initialInput: GameInput = {
 
 function App() {
   const [input, setInput] = useState(initialInput)
-  const { status, snapshot, error } = useGameSocket(input)
+  const [player, setPlayer] = useState<PlayerIdentity | null>(() => loadPlayer())
+  const [mode, setMode] = useState<ControllerMode>(() => loadMode())
+  const [nameDraft, setNameDraft] = useState('')
+  const { status, snapshot, error, replaced } = useGameSocket(input, player, mode)
+
+  const onSubmitName = (event: FormEvent) => {
+    event.preventDefault()
+    if (!nameDraft.trim()) {
+      return
+    }
+    setPlayer(savePlayer(nameDraft))
+  }
+
+  const onModeChange = (next: ControllerMode) => {
+    saveMode(next)
+    setMode(next)
+  }
 
   return (
     <main className="app-shell">
+      {!player && (
+        <div className="player-gate">
+          <form className="player-gate__card" onSubmit={onSubmitName}>
+            <p className="eyebrow">IDENTIFY</p>
+            <h2>Player name</h2>
+            <p>One active tab per name. Opening another tab replaces this session.</p>
+            <input
+              autoFocus
+              maxLength={32}
+              placeholder="alex"
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
+            />
+            <button type="submit" disabled={!nameDraft.trim()}>
+              Enter arena
+            </button>
+          </form>
+        </div>
+      )}
+
       <header className="masthead">
         <div>
           <p className="eyebrow">MALECNS CONTROL EXPERIMENT / MVP 01</p>
@@ -36,12 +80,13 @@ function App() {
           <div className="panel-heading">
             <span>LIVE ARENA</span>
             <span className="coordinates">
-              X {input.swatter_position.x.toFixed(3)} / Y {input.swatter_position.y.toFixed(3)}
+              {player ? `${player.name.toUpperCase()} · ` : ''}X {input.swatter_position.x.toFixed(3)} / Y{' '}
+              {input.swatter_position.y.toFixed(3)}
             </span>
           </div>
           <div className="canvas-frame">
             <GameCanvas snapshot={snapshot} input={input} onInputChange={setInput} />
-            {!snapshot && (
+            {!snapshot && player && (
               <div className="canvas-placeholder">
                 <span>WAITING FOR BACKEND</span>
                 <small>go run ./cmd/server</small>
@@ -62,12 +107,39 @@ function App() {
           <Metric label="Survival" value={formatDuration(snapshot?.survival_ms)} />
           <Metric
             label="Controller"
-            value={snapshot?.neural_activity ? 'MALECNS' : 'RANDOM'}
-            warning={!snapshot?.neural_activity}
+            value={controllerLabel(mode, Boolean(snapshot?.neural_activity))}
+            warning={mode !== 'random' && !snapshot?.neural_activity}
+            hint="Who steers the fly: MaleCNS or random."
           />
 
+          <div className="mode-picker" role="group" aria-label="Controller mode">
+            <span className="mode-picker__label">
+              WEIGHTS
+              <Hint text="Shared learns together. Static is frozen. Random skips the brain." />
+            </span>
+            {(
+              [
+                ['shared', 'Shared'],
+                ['static', 'Static'],
+                ['random', 'Random'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={mode === value ? 'mode-picker__option mode-picker__option--active' : 'mode-picker__option'}
+                onClick={() => onModeChange(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="action-readout">
-            <span>LAST COMMAND</span>
+            <span>
+              LAST COMMAND
+              <Hint text="Latest decoded motor action from the controller." />
+            </span>
             <strong>{formatAction(snapshot?.last_action)}</strong>
           </div>
 
@@ -78,18 +150,16 @@ function App() {
             {snapshot?.alive === false ? 'CONTACT DETECTED' : 'FLY ACTIVE'}
           </div>
 
-          {error && <p className="error-message">{error}</p>}
+          {(error || replaced) && (
+            <p className="error-message">{replaced ? 'Session opened in another tab' : error}</p>
+          )}
         </aside>
       </section>
 
       <section className="disclosure">
         <span>01</span>
-        <p>
-          {snapshot?.neural_activity
-            ? 'MaleCNS v1.0 produces the commands through an engineered DNp20 / DNpe017 readout. Learning is disabled.'
-            : 'The backend currently uses a seeded random controller. No connectome is attached and no learning is claimed in this build.'}
-        </p>
-        <span>{snapshot?.neural_activity ? 'CONNECTOME ONLINE' : 'CONTROL BASELINE'}</span>
+        <p>{disclosureText(mode, Boolean(snapshot?.neural_activity))}</p>
+        <span>{mode === 'random' ? 'CONTROL BASELINE' : snapshot?.neural_activity ? 'CONNECTOME ONLINE' : 'WAITING'}</span>
       </section>
     </main>
   )
@@ -99,15 +169,56 @@ interface MetricProps {
   label: string
   value: string | number
   warning?: boolean
+  hint?: string
 }
 
-function Metric({ label, value, warning = false }: MetricProps) {
+function Metric({ label, value, warning = false, hint }: MetricProps) {
   return (
     <div className="metric">
-      <span>{label}</span>
+      <span>
+        {label}
+        {hint ? <Hint text={hint} /> : null}
+      </span>
       <strong className={warning ? 'metric__warning' : ''}>{value}</strong>
     </div>
   )
+}
+
+function Hint({ text }: { text: string }) {
+  return (
+    <span className="hint">
+      <button type="button" className="hint__mark" aria-label={text}>
+        ?
+      </button>
+      <span className="hint__bubble" role="tooltip">
+        {text}
+      </span>
+    </span>
+  )
+}
+
+function controllerLabel(mode: ControllerMode, hasNeural: boolean) {
+  if (mode === 'random') {
+    return 'RANDOM'
+  }
+  if (!hasNeural) {
+    return mode === 'shared' ? 'SHARED?' : 'STATIC?'
+  }
+  return mode === 'shared' ? 'SHARED LEARN' : 'STATIC'
+}
+
+function disclosureText(mode: ControllerMode, hasNeural: boolean) {
+  if (mode === 'random') {
+    return 'Seeded random controller. No connectome and no learning.'
+  }
+  if (mode === 'shared') {
+    return hasNeural
+      ? 'Shared MaleCNS weights with engineered dopamine plasticity. Weight changes are not validated learning.'
+      : 'Shared learning mode selected. Waiting for MaleCNS worker.'
+  }
+  return hasNeural
+    ? 'MaleCNS v1.0 with frozen baseline weights. Learning is disabled.'
+    : 'Static MaleCNS mode selected. Waiting for neural worker.'
 }
 
 function formatDuration(value?: number) {

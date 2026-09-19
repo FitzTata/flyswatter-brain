@@ -1,102 +1,57 @@
 # Fly vs Flyswatter
 
-An experimental browser game in which a simulated Drosophila connectome controls a virtual fly trying to dodge a flyswatter.
+Browser game where a simulated fruit-fly connectome (MaleCNS) steers a virtual fly while you try to hit it with a flyswatter.
 
-## Concept
+## What you get
 
-The player moves a flyswatter with the mouse. The game produces a visual frame, the backend maps it to photoreceptor stimuli for the MaleCNS model, advances the spiking simulation, and decodes selected descending-neuron activity into one of four commands:
+- Mouse-aimed flyswatter with wind-up strikes and light inertia
+- Live arena over WebSocket
+- Optional MaleCNS controller that turns retinal frames into `turn_left` / `turn_right` / `straight` / `escape`
+- Neural readout panel for descending-neuron activity
+- Three controller modes in the UI:
+  - **Shared** — MaleCNS with shared plastic weights
+  - **Static** — MaleCNS with frozen baseline weights
+  - **Random** — seeded baseline without the connectome
 
-- `turn_left`
-- `turn_right`
-- `straight`
-- `escape`
-
-The frontend applies the command and visualizes the fly's movement, readout-neuron activity, and episode statistics.
+First visit asks for a player name (saved locally). The same name in a second tab replaces the older session.
 
 ## Scientific boundaries
 
-- This is an approximate wiring-constrained simulation, not a digital copy of a living fly.
-- Pixel-to-photoreceptor mapping and neuron-to-command decoding are engineered interfaces.
-- Synaptic weight changes alone do not demonstrate learning.
-- Learned avoidance requires improvement on held-out scenarios against random-controller, frozen-weight, and shuffled-reinforcement controls.
+- Wiring-constrained simulation, not a copy of a living fly
+- Pixel→photoreceptor mapping and neuron→command decoding are engineered
+- Synaptic weight changes alone are not validated learning
 
-## Proposed stack
+## Quick start
 
-- Backend: Go, WebSocket, long-lived game sessions
-- Neural worker: an existing MaleCNS kernel from the DOOMFLY/StonkFly ecosystem, or a compatible standalone process
-- Frontend: React, TypeScript, Vite, Canvas
-- Storage: checkpoint files and JSONL/SQLite, with no separate database server
+### Requirements
 
-## Architecture
+- Go 1.22+
+- Node.js 20+
+- Optional for MaleCNS: [uv](https://docs.astral.sh/uv/), Python 3.14, a C++17 compiler, ~1.1 GB download + several GB disk
 
-```text
-Browser Canvas
-  ├─ renders the fly and flyswatter
-  ├─ sends player input
-  └─ interpolates snapshots
-             │ WebSocket
-             ▼
-Go backend
-  ├─ owns authoritative game state
-  ├─ builds sensory frames
-  ├─ invokes the neural worker
-  ├─ decodes actions
-  └─ computes collisions and metrics
-             │ IPC
-             ▼
-MaleCNS neural worker
-  ├─ retinal adapter
-  ├─ stateful LIF simulation
-  ├─ descending-neuron readout
-  └─ optional dopamine-gated plasticity
-```
-
-## MVP backend
-
-The current backend owns deterministic game state and exposes:
-
-- `GET /healthz` for health checks
-- `GET /ws` for stateful game sessions
-
-Run it locally:
+### 1. Backend
 
 ```sh
 go run ./cmd/server
 ```
 
-The server listens on `127.0.0.1:8080` by default. Set `FLYSWATTER_ADDR` to override it.
+Listens on `127.0.0.1:8080` by default (`FLYSWATTER_ADDR` overrides).
 
-Runtime behavior is configured through environment variables:
-
-- `FLYSWATTER_GAME_STEP_MS`, `FLYSWATTER_FLY_SPEED`, `FLYSWATTER_FLY_RADIUS`
-- `FLYSWATTER_SWATTER_RADIUS`, `FLYSWATTER_TURN_DEGREES`, `FLYSWATTER_ESCAPE_MULTIPLIER`
-- `FLYSWATTER_SWING_WINDUP_MS`, `FLYSWATTER_SWING_ACTIVE_MS`
-- `FLYSWATTER_NEURAL_STEP_MS`, `FLYSWATTER_NEURAL_STARTUP_TIMEOUT`
-- `FLYSWATTER_CONTROLLER`, `FLYSWATTER_RUNS_DIR`, `FLYSWATTER_PYTHON`, `STONKFLY_DATA`
-- `FLYSWATTER_LOG_LEVEL`, `FLYSWATTER_LOG_FORMAT`, `FLYSWATTER_LOG_FILE`
-
-Invalid numeric values fail startup instead of silently falling back. Browser timing and visual constants live in `frontend/src/config.ts`.
-
-Logging defaults to structured JSON on stdout. Set `FLYSWATTER_LOG_FILE=runs/app.log` to also append the same stream for local clone-and-run debugging. Per-tick game history stays in `runs/<session>/events.jsonl`, not in the operational log.
-
-Run the backend checks:
+Without MaleCNS setup the server falls back to the random controller. To require MaleCNS:
 
 ```sh
-go test ./...
-go vet ./...
+# Windows PowerShell
+$env:FLYSWATTER_CONTROLLER = "malecns"
+go run ./cmd/server
 ```
 
-WebSocket sessions start with a snapshot. The client then sends input messages:
-
-```json
-{"type":"input","input":{"swatter_position":{"x":0.4,"y":0.6},"attacking":true,"arena_aspect_ratio":2.0}}
+```sh
+# Linux / macOS
+export FLYSWATTER_CONTROLLER=malecns
+go run ./cmd/server
 ```
 
-Each valid input advances the authoritative game by one fixed step and returns the next snapshot.
-
-## MVP frontend
-
-Start the backend, then run the browser client in another terminal:
+### 2. Frontend
 
 ```sh
 cd frontend
@@ -104,52 +59,61 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`, move the pointer to aim the flyswatter, and click to strike.
+Open `http://127.0.0.1:5173`, enter a name, aim, click to strike.
 
-Run the frontend checks:
+### 3. MaleCNS (optional)
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup_neural.ps1
+```
+
+This creates `.venv-neural` with `uv`, installs `neural_worker` deps from the locked `pyproject.toml`, and prepares MaleCNS data under ignored local paths.
+
+Linux sketch (same idea):
 
 ```sh
+git submodule update --init --recursive
+uv venv .venv-neural --python 3.14
+UV_PROJECT_ENVIRONMENT=.venv-neural uv sync --project neural_worker
+export PYTHONPATH="$PWD/third_party/stonkfly"
+export STONKFLY_DATA="$PWD/.local/malecns"
+.venv-neural/bin/python -c 'from stonkfly.data import prepare; prepare()'
+```
+
+## Useful checks
+
+```sh
+go test ./...
+go vet ./...
+```
+
+```sh
+cd frontend
 npm run typecheck
 npm run lint
 npm test
 npm run build
 ```
 
-Run all Go, TypeScript, and Python linters from the repository root:
+## How it fits together
 
-```powershell
-.\scripts\lint.ps1
+```text
+Browser canvas  --WebSocket-->  Go game server  --IPC-->  MaleCNS worker
+     ^                              |                         |
+     |                              |                         |
+  input + draw                 authority + sessions      spikes + decode
 ```
 
-## Session persistence
+Game checkpoints and replay logs live under `runs/<player>/`. Shared learning weights (if enabled) live under `runs/_shared/brain.npz`. MaleCNS membrane state is not restored across restarts; telemetry refreshes live.
 
-Every accepted input updates an atomic game checkpoint and an append-only replay log under `runs/<session>/`. The browser uses the `default` session; open `/?session=<name>` to keep a separate run. Set `FLYSWATTER_RUNS_DIR` to move the storage directory.
+Common env vars: `FLYSWATTER_ADDR`, `FLYSWATTER_CONTROLLER` (`auto` / `malecns` / `random`), `FLYSWATTER_RUNS_DIR`, `FLYSWATTER_PYTHON`, `STONKFLY_DATA`, `FLYSWATTER_LOG_LEVEL`, `FLYSWATTER_LOG_FILE`.
 
-On reconnect or server restart, the backend restores the episode, tick, survival time, and entity positions. MaleCNS runtime state is deliberately not part of this checkpoint: the worker starts clean, and the UI waits for fresh neural telemetry instead of displaying saved activity as live data.
+## Attribution
 
-## MaleCNS controller
-
-The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires [uv](https://docs.astral.sh/uv/), Python 3.14, and a C++17 compiler. It downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/setup_neural.ps1
-```
-
-The script creates `.venv-neural` with `uv`, installs `neural_worker` dependencies from the locked `pyproject.toml`, and prepares MaleCNS data. The downloaded dataset, compiled kernel, and Python environment remain under ignored local directories.
-
-The server uses `auto` mode by default: it starts MaleCNS when the worker is ready and otherwise reports the error and falls back to the seeded random controller. To require MaleCNS and fail instead of falling back:
-
-```powershell
-$env:FLYSWATTER_CONTROLLER = "malecns"
-go run ./cmd/server
-```
-
-Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker receives only a rendered RGB arena frame, advances 2 ms of model time per 20-ms game step at the original 0.1-ms integration timestep, and decodes DNp20/DNpe017 rates over a rolling 100-ms model-time window. This is an engineered interface, not a validated natural fly motor decoder. See [`THIRD_PARTY.md`](THIRD_PARTY.md) for attribution.
-
-## Status
-
-The interactive baseline, MaleCNS worker, and neural activity readout are implemented. Learning remains post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md), [`post-MVP backlog`](docs/BACKLOG.md), and the current [`Docker decision`](docs/DOCKER.md).
+MaleCNS runs through the pinned StonkFly submodule. See [`THIRD_PARTY.md`](THIRD_PARTY.md).
 
 ## License
 
-Project-owned code is available under the [MIT License](LICENSE). StonkFly and MaleCNS data retain their respective third-party licenses; see [`THIRD_PARTY.md`](THIRD_PARTY.md).
+Project-owned code: [MIT](LICENSE). StonkFly / MaleCNS data keep their upstream licenses.

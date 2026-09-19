@@ -118,8 +118,8 @@ func DefaultConfig() Config {
 		FlyRadius:          0.025,
 		SwatterRadius:      0.085,
 		TurnRadians:        math.Pi / 12,
-		EscapeMultiplier:   2.6,
-		SwingWindupSeconds: 0.14,
+		EscapeMultiplier:   3.5,
+		SwingWindupSeconds: 0.28,
 		SwingActiveSeconds: 0.08,
 	}
 }
@@ -156,6 +156,12 @@ func NewWithRand(config Config, controller Controller, random *rand.Rand) *Game 
 
 func (g *Game) Snapshot() Snapshot {
 	return g.state
+}
+
+func (g *Game) ReportDeath() {
+	if reporter, ok := g.controller.(interface{ ReportDeath() }); ok {
+		reporter.ReportDeath()
+	}
 }
 
 func (g *Game) Restore(snapshot Snapshot) error {

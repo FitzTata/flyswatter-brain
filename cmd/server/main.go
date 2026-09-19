@@ -42,19 +42,30 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	neuralController := connectNeuralController(ctx, logger, config)
-	if neuralController != nil {
+	hub := connectNeuralHub(ctx, logger, config)
+	if hub != nil {
 		defer func() {
-			if err := neuralController.Close(); err != nil {
-				logger.Error("close neural worker", "error", err)
+			if err := hub.Close(); err != nil {
+				logger.Error("close neural hub", "error", err)
 			}
 		}()
 	}
-	server := api.NewServer(logger, func(seed int64) *game.Game {
-		if neuralController != nil {
-			return game.New(config.Game, neuralController)
+
+	server := api.NewServer(logger, func(seed int64, mode neural.Mode) (*game.Game, error) {
+		if mode == neural.ModeRandom || hub == nil || !hub.Available() {
+			if mode == neural.ModeShared || mode == neural.ModeStatic {
+				if config.ControllerMode == "malecns" {
+					return nil, errors.New("MaleCNS controller unavailable")
+				}
+				logger.Warn("MaleCNS unavailable; falling back to random", "requested_mode", mode)
+			}
+			return game.New(config.Game, game.NewRandomController(seed)), nil
 		}
-		return game.New(config.Game, game.NewRandomController(seed))
+		controller, err := hub.ControllerFor(mode, seed)
+		if err != nil {
+			return nil, err
+		}
+		return game.New(config.Game, controller), nil
 	}).WithStore(persistence.NewFileStore(config.RunsDir))
 
 	httpServer := &http.Server{
@@ -79,10 +90,10 @@ func main() {
 	}
 }
 
-func connectNeuralController(ctx context.Context, logger *slog.Logger, config appconfig.Config) *neural.Controller {
+func connectNeuralHub(ctx context.Context, logger *slog.Logger, config appconfig.Config) *neural.Hub {
 	if config.ControllerMode == "random" {
-		logger.Info("using random controller")
-		return nil
+		logger.Info("using random controller only")
+		return neural.NewHub(nil, config.RunsDir)
 	}
 
 	controller, err := neural.NewController(ctx, neural.Config{
@@ -97,13 +108,13 @@ func connectNeuralController(ctx context.Context, logger *slog.Logger, config ap
 		},
 	})
 	if err == nil {
-		logger.Info("using MaleCNS controller")
-		return controller
+		logger.Info("using MaleCNS neural hub")
+		return neural.NewHub(controller, config.RunsDir)
 	}
 	if config.ControllerMode == "malecns" {
 		logger.Error("MaleCNS controller required but unavailable", "error", err)
 		os.Exit(1)
 	}
-	logger.Warn("MaleCNS unavailable; using random controller", "error", err)
-	return nil
+	logger.Warn("MaleCNS unavailable; shared/static fall back to random", "error", err)
+	return neural.NewHub(nil, config.RunsDir)
 }

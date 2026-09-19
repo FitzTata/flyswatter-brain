@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/FitzTata/flyswatter-brain/internal/game"
+	"github.com/FitzTata/flyswatter-brain/internal/neural"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"github.com/stretchr/testify/assert"
@@ -46,13 +48,10 @@ func (s *memoryStore) Save(_ context.Context, session string, input game.Input, 
 func TestHealth(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
 	server := newTestServer(t)
 
-	// Act
 	response, err := http.Get(server.URL + "/healthz")
 
-	// Assert
 	require.NoError(t, err)
 	defer response.Body.Close()
 	assert.Equal(t, http.StatusOK, response.StatusCode)
@@ -62,16 +61,14 @@ func TestHealth(t *testing.T) {
 func TestWebsocketSession(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
 	server := newTestServer(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
 	connection, _, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
 		HTTPHeader: http.Header{"Origin": []string{"http://localhost:5173"}},
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = connection.CloseNow() })
 
-	// Act
 	var initial serverMessage
 	require.NoError(t, wsjson.Read(context.Background(), connection, &initial))
 	require.NoError(t, wsjson.Write(context.Background(), connection, clientMessage{
@@ -83,13 +80,63 @@ func TestWebsocketSession(t *testing.T) {
 	var updated serverMessage
 	require.NoError(t, wsjson.Read(context.Background(), connection, &updated))
 
-	// Assert
 	require.NotNil(t, initial.Snapshot)
 	require.NotNil(t, updated.Snapshot)
 	assert.Equal(t, "snapshot", initial.Type)
 	assert.Equal(t, uint64(0), initial.Snapshot.Tick)
 	assert.Equal(t, uint64(1), updated.Snapshot.Tick)
 	assert.Equal(t, game.ActionStraight, updated.Snapshot.LastAction)
+}
+
+func TestWebsocketRequiresPlayer(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(t)
+	response, err := http.Get(server.URL + "/ws")
+
+	require.NoError(t, err)
+	defer response.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+}
+
+func TestWebsocketRejectsInvalidMode(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(t)
+	response, err := http.Get(server.URL + "/ws?session=alex&mode=personal")
+
+	require.NoError(t, err)
+	defer response.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+}
+
+func TestWebsocketReplacesExistingPlayerSession(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(t)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
+	first, _, err := websocket.Dial(context.Background(), wsURL, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = first.CloseNow() })
+	var initial serverMessage
+	require.NoError(t, wsjson.Read(context.Background(), first, &initial))
+
+	second, _, err := websocket.Dial(context.Background(), wsURL, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = second.CloseNow() })
+	var secondInitial serverMessage
+	require.NoError(t, wsjson.Read(context.Background(), second, &secondInitial))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, _, err = first.Read(ctx)
+
+	require.Error(t, err)
+	assert.True(t,
+		websocket.CloseStatus(err) == websocket.StatusPolicyViolation ||
+			strings.Contains(err.Error(), "session_replaced"),
+	)
+	require.NotNil(t, secondInitial.Snapshot)
 }
 
 func TestWebsocketRestoresAndSavesSession(t *testing.T) {
@@ -105,24 +152,24 @@ func TestWebsocketRestoresAndSavesSession(t *testing.T) {
 			LastAction: game.ActionStraight,
 			Fly: game.Fly{
 				Position: game.Vec2{X: 0.5, Y: 0.5},
-				Speed:    0.28,
+				Speed:    0.42,
 				Radius:   0.025,
 			},
 			Swatter: game.Swatter{
 				Position: game.Vec2{X: 0.8, Y: 0.2},
-				Radius:   0.09,
+				Radius:   0.085,
 			},
 		},
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := NewServer(logger, func(int64) *game.Game {
-		return game.New(game.DefaultConfig(), fixedController{action: game.ActionStraight})
+	handler := NewServer(logger, func(int64, neural.Mode) (*game.Game, error) {
+		return game.New(game.DefaultConfig(), fixedController{action: game.ActionStraight}), nil
 	}).WithStore(store)
 	server := httptest.NewServer(handler.Handler())
 	t.Cleanup(server.Close)
 	connection, _, err := websocket.Dial(
 		context.Background(),
-		"ws"+strings.TrimPrefix(server.URL, "http")+"/ws?session=alex",
+		"ws"+strings.TrimPrefix(server.URL, "http")+"/ws?session=alex&mode=random",
 		nil,
 	)
 	require.NoError(t, err)
@@ -147,21 +194,18 @@ func TestWebsocketRestoresAndSavesSession(t *testing.T) {
 func TestWebsocketRejectsUnknownMessage(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
 	server := newTestServer(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
 	connection, _, err := websocket.Dial(context.Background(), wsURL, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = connection.CloseNow() })
 	var initial serverMessage
 	require.NoError(t, wsjson.Read(context.Background(), connection, &initial))
 
-	// Act
 	require.NoError(t, wsjson.Write(context.Background(), connection, clientMessage{Type: "unknown"}))
 	var response serverMessage
 	require.NoError(t, wsjson.Read(context.Background(), connection, &response))
 
-	// Assert
 	assert.Equal(t, "error", response.Type)
 	assert.Equal(t, "unsupported message type", response.Error)
 }
@@ -170,8 +214,8 @@ func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := NewServer(logger, func(int64) *game.Game {
-		return game.New(game.DefaultConfig(), fixedController{action: game.ActionStraight})
+	server := NewServer(logger, func(int64, neural.Mode) (*game.Game, error) {
+		return game.New(game.DefaultConfig(), fixedController{action: game.ActionStraight}), nil
 	})
 	httpServer := httptest.NewServer(server.Handler())
 	t.Cleanup(httpServer.Close)

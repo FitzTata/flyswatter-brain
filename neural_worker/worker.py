@@ -19,8 +19,10 @@ from stonkfly.neural.controller import Decoder
 from stonkfly.neural.visual import VisualMemoryBrain
 
 from frame import THRESHOLD_HZ, action_from_decode, render_frame
+from reinforce import reinforcement_circuit_key
 
 READOUT_WINDOW_MS = 100
+PULSE_CURRENT = 20.0
 
 logging.basicConfig(
     level=os.environ.get("FLYSWATTER_LOG_LEVEL", "INFO").upper(),
@@ -33,6 +35,7 @@ logger = logging.getLogger("neural-worker")
 def main() -> None:
     brain = VisualMemoryBrain()
     brain.weights_frozen = True
+    learning = False
     decoder = Decoder(brain.ids, annotations(brain.ids), THRESHOLD_HZ)
     history: deque[np.ndarray] = deque()
     rolling_counts = np.zeros(brain.n, dtype=np.int64)
@@ -49,12 +52,40 @@ def main() -> None:
     for line in sys.stdin:
         try:
             request = json.loads(line)
-            if request.get("type") != "step":
+            request_type = request.get("type")
+            if request_type == "configure":
+                learning = bool(request.get("learning", False))
+                brain.weights_frozen = not learning
+                if request.get("reset_baseline"):
+                    brain.reset(keep_memory=False)
+                load_path = request.get("load_path") or ""
+                if load_path and Path(load_path).is_file():
+                    brain.restore(load_path)
+                    brain.weights_frozen = not learning
+                history.clear()
+                rolling_counts[:] = 0
+                send({"type": "configured", "learning": learning})
+                logger.info("configured learning=%s load=%s", learning, load_path or "-")
+                continue
+            if request_type == "save":
+                path = request["path"]
+                brain.checkpoint(path)
+                send({"type": "saved", "path": path})
+                logger.info("saved checkpoint path=%s", path)
+                continue
+            if request_type != "step":
                 raise ValueError("unsupported request type")
             duration_ms = float(request.get("duration_ms", 50))
+            reinforcement = request.get("reinforcement", "none")
             frame = render_frame(request["observation"])
             started = time.perf_counter()
-            counts, kernel_seconds = brain.rgb_step(frame, duration_ms, learning=False)
+            stimulation = stimulation_for(brain, reinforcement)
+            counts, kernel_seconds = brain.rgb_step(
+                frame,
+                duration_ms,
+                learning=learning,
+                stimulation=stimulation,
+            )
             history.append(counts)
             rolling_counts += counts
             max_samples = max(1, round(READOUT_WINDOW_MS / duration_ms))
@@ -79,8 +110,15 @@ def main() -> None:
                 }
             )
         except Exception as error:
-            logger.exception("step failed")
+            logger.exception("request failed")
             send({"type": "error", "error": str(error)})
+
+
+def stimulation_for(brain: Any, reinforcement: str) -> list[tuple[Any, float]] | None:
+    key = reinforcement_circuit_key(reinforcement)
+    if key is None:
+        return None
+    return [(brain.circuit[key], PULSE_CURRENT)]
 
 
 def activity(

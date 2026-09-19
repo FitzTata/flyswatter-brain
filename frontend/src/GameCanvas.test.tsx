@@ -30,7 +30,7 @@ describe('GameCanvas', () => {
   })
 
   it('emits one swing with non-zero windup per pointer press', () => {
-    vi.useFakeTimers()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const onInputChange = vi.fn()
     render(
       <GameCanvas
@@ -44,18 +44,20 @@ describe('GameCanvas', () => {
     fireEvent.pointerDown(canvas, { clientX: 400, clientY: 260, pointerId: 1 })
     fireEvent.pointerDown(canvas, { clientX: 400, clientY: 260, pointerId: 1 })
     expect(canvas).toHaveClass('game-canvas--windup')
+    expect(onInputChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attacking: true,
+        arena_aspect_ratio: 800 / 520,
+      }),
+    )
+
     vi.advanceTimersByTime(UI_CONFIG.swingWindupMS + UI_CONFIG.strikeDurationMS)
 
-    expect(onInputChange).toHaveBeenCalledTimes(2)
-    expect(onInputChange).toHaveBeenNthCalledWith(1, {
-      swatter_position: { x: 0.5, y: 0.5 },
-      attacking: true,
-      arena_aspect_ratio: 800 / 520,
-    })
-    expect(onInputChange).toHaveBeenNthCalledWith(2, {
-      swatter_position: { x: 0.5, y: 0.5 },
-      attacking: false,
-      arena_aspect_ratio: 800 / 520,
-    })
+    expect(onInputChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attacking: false,
+        arena_aspect_ratio: 800 / 520,
+      }),
+    )
   })
 })

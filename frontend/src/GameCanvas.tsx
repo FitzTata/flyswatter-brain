@@ -13,14 +13,46 @@ interface GameCanvasProps {
 export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const positionRef = useRef(input.swatter_position)
+  const targetRef = useRef(input.swatter_position)
+  const velocityRef = useRef<Vec2>({ x: 0, y: 0 })
+  const trailRef = useRef<Vec2[]>([input.swatter_position])
   const aspectRatioRef = useRef(input.arena_aspect_ratio ?? UI_CONFIG.defaultArenaAspectRatio)
   const strikeActiveRef = useRef(false)
   const strikeLockedRef = useRef(false)
   const strikeTimerRef = useRef<number | undefined>(undefined)
   const windupTimerRef = useRef<number | undefined>(undefined)
+  const onInputChangeRef = useRef(onInputChange)
+  const lastSentRef = useRef({ position: input.swatter_position, attacking: input.attacking })
   const [localPhase, setLocalPhase] = useState<SwingPhase>('idle')
+  const [renderTick, setRenderTick] = useState(0)
 
   const swingPhase: SwingPhase = snapshot?.swatter.phase ?? localPhase
+
+  useEffect(() => {
+    onInputChangeRef.current = onInputChange
+  }, [onInputChange])
+
+  useEffect(() => {
+    let frame = 0
+    let previous = performance.now()
+
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, Math.max(0.001, (now - previous) / 1000))
+      previous = now
+      stepSwatterPhysics(positionRef.current, targetRef.current, velocityRef.current, dt)
+      positionRef.current = {
+        x: clamp(positionRef.current.x),
+        y: clamp(positionRef.current.y),
+      }
+      pushTrail(trailRef.current, positionRef.current)
+      publishInput(positionRef.current, strikeActiveRef.current, aspectRatioRef.current, lastSentRef, onInputChangeRef)
+      setRenderTick((value) => value + 1)
+      frame = window.requestAnimationFrame(tick)
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -34,13 +66,21 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     if (snapshot) {
       drawFly(context, snapshot, width, height)
     }
-    drawSwatter(context, input, snapshot?.swatter.radius ?? 0.085, width, height, swingPhase)
+    drawTrail(context, trailRef.current, snapshot?.swatter.radius ?? 0.085, width, height)
+    drawSwatter(
+      context,
+      positionRef.current,
+      snapshot?.swatter.radius ?? 0.085,
+      width,
+      height,
+      swingPhase,
+    )
 
     if (snapshot && !snapshot.alive) {
       context.fillStyle = 'rgba(255, 81, 47, 0.14)'
       context.fillRect(0, 0, width, height)
     }
-  }, [snapshot, input, swingPhase])
+  }, [snapshot, swingPhase, renderTick])
 
   useEffect(
     () => () => {
@@ -50,15 +90,10 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     [],
   )
 
-  const updatePosition = (event: PointerEvent<HTMLCanvasElement>) => {
+  const updateTarget = (event: PointerEvent<HTMLCanvasElement>) => {
     const { position, aspectRatio } = pointerState(event)
-    positionRef.current = position
+    targetRef.current = position
     aspectRatioRef.current = aspectRatio
-    onInputChange({
-      swatter_position: position,
-      attacking: strikeActiveRef.current,
-      arena_aspect_ratio: aspectRatio,
-    })
   }
 
   const strike = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -66,14 +101,12 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
       return
     }
 
-    const { position, aspectRatio } = pointerState(event)
-    positionRef.current = position
-    aspectRatioRef.current = aspectRatio
+    updateTarget(event)
     strikeLockedRef.current = true
     strikeActiveRef.current = true
     setLocalPhase('windup')
     event.currentTarget.setPointerCapture(event.pointerId)
-    onInputChange({ swatter_position: position, attacking: true, arena_aspect_ratio: aspectRatio })
+    publishInput(positionRef.current, true, aspectRatioRef.current, lastSentRef, onInputChangeRef, true)
 
     windupTimerRef.current = window.setTimeout(() => {
       setLocalPhase('strike')
@@ -82,11 +115,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     strikeTimerRef.current = window.setTimeout(() => {
       strikeActiveRef.current = false
       setLocalPhase('idle')
-      onInputChange({
-        swatter_position: positionRef.current,
-        attacking: false,
-        arena_aspect_ratio: aspectRatioRef.current,
-      })
+      publishInput(positionRef.current, false, aspectRatioRef.current, lastSentRef, onInputChangeRef, true)
     }, UI_CONFIG.swingWindupMS + UI_CONFIG.strikeDurationMS)
   }
 
@@ -103,11 +132,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     strikeActiveRef.current = false
     strikeLockedRef.current = false
     setLocalPhase('idle')
-    onInputChange({
-      swatter_position: positionRef.current,
-      attacking: false,
-      arena_aspect_ratio: aspectRatioRef.current,
-    })
+    publishInput(positionRef.current, false, aspectRatioRef.current, lastSentRef, onInputChangeRef, true)
   }
 
   const canvasClass =
@@ -128,12 +153,64 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
         } as CSSProperties
       }
       aria-label="Fly arena. Move the pointer to aim and click to strike."
-      onPointerMove={updatePosition}
+      onPointerMove={updateTarget}
       onPointerDown={strike}
       onPointerUp={release}
       onPointerCancel={cancel}
     />
   )
+}
+
+function stepSwatterPhysics(position: Vec2, target: Vec2, velocity: Vec2, dt: number) {
+  const dx = target.x - position.x
+  const dy = target.y - position.y
+  velocity.x += dx * UI_CONFIG.swatterFollowGain * dt
+  velocity.y += dy * UI_CONFIG.swatterFollowGain * dt
+  const damp = Math.exp(-UI_CONFIG.swatterDamping * dt)
+  velocity.x *= damp
+  velocity.y *= damp
+
+  const speed = Math.hypot(velocity.x, velocity.y)
+  if (speed > UI_CONFIG.swatterMaxSpeed && speed > 0) {
+    const scale = UI_CONFIG.swatterMaxSpeed / speed
+    velocity.x *= scale
+    velocity.y *= scale
+  }
+
+  position.x += velocity.x * dt
+  position.y += velocity.y * dt
+}
+
+function pushTrail(trail: Vec2[], position: Vec2) {
+  const last = trail[trail.length - 1]
+  if (last && Math.hypot(last.x - position.x, last.y - position.y) < 0.002) {
+    return
+  }
+  trail.push({ x: position.x, y: position.y })
+  while (trail.length > UI_CONFIG.swatterTrailLength) {
+    trail.shift()
+  }
+}
+
+function publishInput(
+  position: Vec2,
+  attacking: boolean,
+  aspectRatio: number,
+  lastSentRef: { current: { position: Vec2; attacking: boolean } },
+  onInputChangeRef: { current: (input: GameInput) => void },
+  force = false,
+) {
+  const moved =
+    Math.hypot(position.x - lastSentRef.current.position.x, position.y - lastSentRef.current.position.y) > 0.0008
+  if (!force && !moved && attacking === lastSentRef.current.attacking) {
+    return
+  }
+  lastSentRef.current = { position: { ...position }, attacking }
+  onInputChangeRef.current({
+    swatter_position: { ...position },
+    attacking,
+    arena_aspect_ratio: aspectRatio,
+  })
 }
 
 function resizeCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
@@ -201,16 +278,46 @@ function drawFly(context: CanvasRenderingContext2D, snapshot: Snapshot, width: n
   context.restore()
 }
 
+function drawTrail(context: CanvasRenderingContext2D, trail: Vec2[], radius: number, width: number, height: number) {
+  if (trail.length < 2) {
+    return
+  }
+  const size = radius * Math.min(width, height)
+  for (let index = 0; index < trail.length - 1; index++) {
+    const point = trail[index]
+    const t = (index + 1) / trail.length
+    const alpha = 0.08 + t * 0.22
+    const scale = 0.92 + t * 0.08
+
+    context.save()
+    context.translate(point.x * width, point.y * height)
+    context.rotate(-Math.PI / 4)
+    context.globalAlpha = alpha
+    context.strokeStyle = '#ff8a4c'
+    context.lineWidth = 1.4 + t
+    context.setLineDash([3, 4])
+    context.beginPath()
+    context.ellipse(0, 0, size * UI_CONFIG.swatterWidthRatio * scale, size * scale, 0, 0, Math.PI * 2)
+    context.stroke()
+    context.setLineDash([])
+    context.beginPath()
+    context.moveTo(0, size * 0.82 * scale)
+    context.lineTo(0, size * 2.15 * scale)
+    context.stroke()
+    context.restore()
+  }
+}
+
 function drawSwatter(
   context: CanvasRenderingContext2D,
-  input: GameInput,
+  position: Vec2,
   radius: number,
   width: number,
   height: number,
   phase: SwingPhase,
 ) {
-  const x = input.swatter_position.x * width
-  const y = input.swatter_position.y * height
+  const x = position.x * width
+  const y = position.y * height
   const size = radius * Math.min(width, height)
   const striking = phase === 'strike'
   const winding = phase === 'windup'

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { UI_CONFIG } from './config'
@@ -11,7 +11,7 @@ class MockWebSocket {
   onopen: (() => void) | null = null
   onmessage: ((event: MessageEvent) => void) | null = null
   onerror: (() => void) | null = null
-  onclose: (() => void) | null = null
+  onclose: ((event?: CloseEvent) => void) | null = null
   send = vi.fn()
   close = vi.fn()
   readonly url: string
@@ -22,22 +22,49 @@ class MockWebSocket {
   }
 }
 
+function seedPlayer() {
+  window.localStorage.setItem(
+    'flyswatter.player',
+    JSON.stringify({ name: 'Alex', id: 'alex' }),
+  )
+  window.localStorage.setItem('flyswatter.mode', 'static')
+}
+
 describe('App', () => {
   beforeEach(() => {
     MockWebSocket.instances = []
     vi.stubGlobal('WebSocket', MockWebSocket)
+    window.localStorage.clear()
+    document.cookie = 'flyswatter.player=; max-age=0; path=/'
     window.history.replaceState({}, '', '/')
   })
 
-  it('uses the requested persistent session', () => {
-    window.history.replaceState({}, '', '/?session=demo')
-
+  it('asks for a player name before connecting', () => {
     render(<App />)
 
-    expect(MockWebSocket.instances[0].url).toContain('/ws?session=demo')
+    expect(screen.getByText('Player name')).toBeInTheDocument()
+    expect(MockWebSocket.instances).toHaveLength(0)
+  })
+
+  it('connects with player session and mode query', () => {
+    seedPlayer()
+    render(<App />)
+
+    expect(MockWebSocket.instances[0].url).toContain('session=alex')
+    expect(MockWebSocket.instances[0].url).toContain('mode=static')
+  })
+
+  it('reconnects with shared mode when selected', () => {
+    seedPlayer()
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Shared' }))
+
+    expect(MockWebSocket.instances.at(-1)?.url).toContain('mode=shared')
   })
 
   it('renders live backend telemetry', () => {
+    seedPlayer()
     render(<App />)
     const socket = MockWebSocket.instances[0]
 
@@ -79,10 +106,11 @@ describe('App', () => {
 
   it('reconnects after the socket closes', () => {
     vi.useFakeTimers()
+    seedPlayer()
     render(<App />)
 
     act(() => {
-      MockWebSocket.instances[0].onclose?.()
+      MockWebSocket.instances[0].onclose?.({ reason: '' } as CloseEvent)
     })
     expect(screen.getByText('DISCONNECTED')).toBeInTheDocument()
 
@@ -93,8 +121,26 @@ describe('App', () => {
     expect(screen.getByText('CONNECTING')).toBeInTheDocument()
   })
 
+  it('does not reconnect after session_replaced', () => {
+    vi.useFakeTimers()
+    seedPlayer()
+    render(<App />)
+
+    act(() => {
+      MockWebSocket.instances[0].onclose?.({ reason: 'session_replaced', code: 1008 } as CloseEvent)
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(MockWebSocket.instances).toHaveLength(1)
+    expect(screen.getByText('Session opened in another tab')).toBeInTheDocument()
+  })
+
   it('keeps only one game step in flight', () => {
     vi.useFakeTimers()
+    seedPlayer()
     render(<App />)
     const socket = MockWebSocket.instances[0]
     socket.readyState = MockWebSocket.OPEN

@@ -45,7 +45,7 @@ func TestGameStep(t *testing.T) {
 		{name: "straight", action: ActionStraight, wantHeadingDelta: 0, wantSpeed: 0.42, wantMinTravel: 0.008},
 		{name: "left", action: ActionTurnLeft, wantHeadingDelta: -math.Pi / 12, wantSpeed: 0.42, wantMinTravel: 0.008},
 		{name: "right", action: ActionTurnRight, wantHeadingDelta: math.Pi / 12, wantSpeed: 0.42, wantMinTravel: 0.008},
-		{name: "escape", action: ActionEscape, wantHeadingDelta: 0, wantSpeed: 1.092, wantMinTravel: 0.02},
+		{name: "escape", action: ActionEscape, wantHeadingDelta: 0, wantSpeed: 1.47, wantMinTravel: 0.028},
 	}
 
 	for _, tt := range tests {
