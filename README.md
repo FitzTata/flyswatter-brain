@@ -144,7 +144,7 @@ Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker rece
 
 ## Status
 
-The interactive baseline, MaleCNS worker, and neural activity readout are implemented. Learning remains post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).
+The interactive baseline, MaleCNS worker, and neural activity readout are implemented. Learning remains post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md), [`post-MVP backlog`](docs/BACKLOG.md), and the current [`Docker decision`](docs/DOCKER.md).
 
 ## License
 
