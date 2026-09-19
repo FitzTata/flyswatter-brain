@@ -108,6 +108,16 @@ function App() {
           <Metric label="Episode" value={snapshot?.episode ?? '—'} />
           <Metric label="Brain tick" value={snapshot?.tick ?? '—'} />
           <Metric label="Survival" value={formatDuration(snapshot?.survival_ms)} />
+          <div className="hp-meter" aria-label="Fly HP">
+            <span>FLY HP</span>
+            <div className="hp-meter__track">
+              <div
+                className="hp-meter__fill"
+                style={{ width: `${Math.max(0, Math.min(1, snapshot?.fly_hp ?? 1)) * 100}%` }}
+              />
+            </div>
+            <strong>{Math.round(Math.max(0, Math.min(1, snapshot?.fly_hp ?? 1)) * 100)}%</strong>
+          </div>
           <Metric
             label="Controller"
             value={controllerLabel(mode, Boolean(snapshot?.neural_activity))}
@@ -150,7 +160,7 @@ function App() {
 
           <div className={`life-state ${snapshot?.alive === false ? 'life-state--hit' : ''}`}>
             <span className="life-state__pulse" />
-            {snapshot?.alive === false ? 'CONTACT DETECTED' : 'FLY ACTIVE'}
+            {snapshot?.alive === false ? 'FLY DOWN' : 'FLY ACTIVE'}
           </div>
 
           {(error || replaced) && (

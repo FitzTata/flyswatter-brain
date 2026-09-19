@@ -65,6 +65,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     drawGrid(context, width, height)
     if (snapshot) {
       drawFly(context, snapshot, width, height)
+      drawFlyHP(context, snapshot, width, height)
     }
     drawTrail(context, trailRef.current, snapshot?.swatter.radius ?? 0.085, width, height)
     drawSwatter(
@@ -276,6 +277,24 @@ function drawFly(context: CanvasRenderingContext2D, snapshot: Snapshot, width: n
   context.fill()
 
   context.restore()
+}
+
+function drawFlyHP(context: CanvasRenderingContext2D, snapshot: Snapshot, width: number, height: number) {
+  const x = snapshot.fly.position.x * width
+  const y = snapshot.fly.position.y * height
+  const size = Math.max(snapshot.fly.radius * Math.min(width, height), 9)
+  const barWidth = Math.max(34, size * 2.4)
+  const barHeight = 4
+  const left = x - barWidth / 2
+  const top = y - size - 12
+  const hp = Math.max(0, Math.min(1, snapshot.fly_hp))
+
+  context.fillStyle = 'rgba(8, 11, 9, 0.72)'
+  context.fillRect(left - 1, top - 1, barWidth + 2, barHeight + 2)
+  context.fillStyle = 'rgba(218, 255, 196, 0.18)'
+  context.fillRect(left, top, barWidth, barHeight)
+  context.fillStyle = hp > 0.4 ? '#c7ff54' : '#ff7043'
+  context.fillRect(left, top, barWidth * hp, barHeight)
 }
 
 function drawTrail(context: CanvasRenderingContext2D, trail: Vec2[], radius: number, width: number, height: number) {

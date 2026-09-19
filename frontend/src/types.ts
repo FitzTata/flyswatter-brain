@@ -23,6 +23,7 @@ export interface Snapshot {
   tick: number
   episode: number
   alive: boolean
+  fly_hp: number
   survival_ms: number
   last_action: Action
   fly: Fly
@@ -87,6 +88,7 @@ function isSnapshot(value: unknown): value is Snapshot {
     typeof value.tick === 'number' &&
     typeof value.episode === 'number' &&
     typeof value.alive === 'boolean' &&
+    typeof value.fly_hp === 'number' &&
     typeof value.survival_ms === 'number' &&
     isAction(value.last_action) &&
     isFly(value.fly) &&

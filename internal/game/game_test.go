@@ -36,11 +36,11 @@ func TestGameStep(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name            string
-		action          Action
+		name             string
+		action           Action
 		wantHeadingDelta float64
-		wantSpeed       float64
-		wantMinTravel   float64
+		wantSpeed        float64
+		wantMinTravel    float64
 	}{
 		{name: "straight", action: ActionStraight, wantHeadingDelta: 0, wantSpeed: 0.42, wantMinTravel: 0.008},
 		{name: "left", action: ActionTurnLeft, wantHeadingDelta: -math.Pi / 12, wantSpeed: 0.42, wantMinTravel: 0.008},
@@ -89,27 +89,52 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 		Attacking:       true,
 	})
 	require.NoError(t, err)
-	held, err := instance.Step(context.Background(), Input{
-		SwatterPosition: instance.Snapshot().Fly.Position,
-		Attacking:       true,
-	})
-	require.NoError(t, err)
-	next, err := instance.Step(context.Background(), Input{
-		SwatterPosition: Vec2{},
-	})
 
 	require.NoError(t, err)
 	assert.True(t, windup.Alive)
 	assert.Equal(t, SwingWindup, windup.Swatter.Phase)
-	assert.False(t, hit.Alive)
+	assert.True(t, hit.Alive)
+	assert.InDelta(t, 0.8, hit.FlyHP, 0.0001)
 	assert.Equal(t, uint64(1), hit.Episode)
-	assert.True(t, held.Alive)
-	assert.False(t, held.Swatter.Attacking)
-	assert.Equal(t, uint64(2), held.Episode)
-	assert.Equal(t, int64(20), held.SurvivalMS)
-	assert.True(t, next.Alive)
-	assert.Equal(t, uint64(2), next.Episode)
-	assert.Equal(t, int64(40), next.SurvivalMS)
+	assert.False(t, hit.Swatter.Attacking)
+}
+
+func TestGameFiveHitsKillFly(t *testing.T) {
+	t.Parallel()
+
+	config := DefaultConfig()
+	config.SwingWindupSeconds = config.StepSeconds
+	config.SwingActiveSeconds = config.StepSeconds
+	instance := newTestGame(config, fixedController{action: ActionStraight})
+
+	var last Snapshot
+	for range 5 {
+		_, err := instance.Step(context.Background(), Input{
+			SwatterPosition: instance.Snapshot().Fly.Position,
+			Attacking:       true,
+		})
+		require.NoError(t, err)
+		last, err = instance.Step(context.Background(), Input{
+			SwatterPosition: instance.Snapshot().Fly.Position,
+			Attacking:       true,
+		})
+		require.NoError(t, err)
+		_, err = instance.Step(context.Background(), Input{
+			SwatterPosition: Vec2{X: 0, Y: 0},
+			Attacking:       false,
+		})
+		require.NoError(t, err)
+	}
+
+	assert.False(t, last.Alive)
+	assert.Equal(t, 0.0, last.FlyHP)
+	assert.Equal(t, uint64(1), last.Episode)
+
+	respawn, err := instance.Step(context.Background(), Input{SwatterPosition: Vec2{}})
+	require.NoError(t, err)
+	assert.True(t, respawn.Alive)
+	assert.InDelta(t, 1.0, respawn.FlyHP, 0.0001)
+	assert.Equal(t, uint64(2), respawn.Episode)
 }
 
 func TestSwingWindupIsNotLethal(t *testing.T) {
@@ -194,6 +219,7 @@ func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
 		Tick:       42,
 		Episode:    3,
 		Alive:      true,
+		FlyHP:      0.6,
 		SurvivalMS: 840,
 		LastAction: ActionTurnLeft,
 		Fly:        Fly{Position: Vec2{X: 0.3, Y: 0.4}, Heading: 1, Speed: 0.42, Radius: 0.025},
@@ -209,6 +235,7 @@ func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(42), restored.Tick)
 	assert.Equal(t, uint64(3), restored.Episode)
+	assert.InDelta(t, 0.6, restored.FlyHP, 0.0001)
 	assert.Equal(t, checkpoint.Fly, restored.Fly)
 	assert.False(t, restored.Swatter.Attacking)
 	assert.Nil(t, restored.NeuralActivity)

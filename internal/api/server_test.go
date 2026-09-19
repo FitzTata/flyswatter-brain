@@ -148,6 +148,7 @@ func TestWebsocketRestoresAndSavesSession(t *testing.T) {
 			Tick:       42,
 			Episode:    3,
 			Alive:      true,
+			FlyHP:      1,
 			SurvivalMS: 840,
 			LastAction: game.ActionStraight,
 			Fly: game.Fly{

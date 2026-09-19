@@ -57,6 +57,7 @@ func checkpointSnapshot(tick uint64) game.Snapshot {
 		Tick:       tick,
 		Episode:    1,
 		Alive:      true,
+		FlyHP:      1,
 		SurvivalMS: int64(tick * 20),
 		LastAction: game.ActionStraight,
 		Fly: game.Fly{

@@ -80,6 +80,7 @@ describe('App', () => {
               episode: 7,
               alive: true,
               survival_ms: 1250,
+              fly_hp: 1,
               last_action: 'turn_left',
               fly: {
                 position: { x: 0.4, y: 0.6 },

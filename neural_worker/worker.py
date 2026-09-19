@@ -9,17 +9,16 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from frame import THRESHOLD_HZ, action_from_decode, render_frame
+from reinforce import reinforcement_circuit_key
 
 _SOURCE = Path(os.environ.get("FLYSWATTER_STONKFLY_SOURCE", "")).resolve()
 if _SOURCE.is_dir():
     sys.path.insert(0, str(_SOURCE))
 
-from stonkfly.neural.common import annotations
-from stonkfly.neural.controller import Decoder
-from stonkfly.neural.visual import VisualMemoryBrain
-
-from frame import THRESHOLD_HZ, action_from_decode, render_frame
-from reinforce import reinforcement_circuit_key
+from stonkfly.neural.common import annotations  # noqa: E402
+from stonkfly.neural.controller import Decoder  # noqa: E402
+from stonkfly.neural.visual import VisualMemoryBrain  # noqa: E402
 
 READOUT_WINDOW_MS = 100
 PULSE_CURRENT = 20.0

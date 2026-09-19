@@ -66,6 +66,7 @@ type Snapshot struct {
 	Tick           uint64          `json:"tick"`
 	Episode        uint64          `json:"episode"`
 	Alive          bool            `json:"alive"`
+	FlyHP          float64         `json:"fly_hp"`
 	SurvivalMS     int64           `json:"survival_ms"`
 	LastAction     Action          `json:"last_action"`
 	Fly            Fly             `json:"fly"`
@@ -124,6 +125,11 @@ func DefaultConfig() Config {
 	}
 }
 
+const (
+	flyHPMax     = 1.0
+	flyHitDamage = 0.2
+)
+
 type Game struct {
 	config           Config
 	controller       Controller
@@ -148,6 +154,7 @@ func NewWithRand(config Config, controller Controller, random *rand.Rand) *Game 
 		state: Snapshot{
 			Episode: 1,
 			Alive:   true,
+			FlyHP:   flyHPMax,
 		},
 	}
 	game.resetFly()
@@ -172,6 +179,12 @@ func (g *Game) Restore(snapshot Snapshot) error {
 		!validEntity(snapshot.Swatter.Position, snapshot.Swatter.Radius, 0) ||
 		!isFinite(snapshot.Fly.Heading) {
 		return ErrInvalidCheckpoint
+	}
+	if snapshot.FlyHP < 0 || snapshot.FlyHP > flyHPMax || !isFinite(snapshot.FlyHP) {
+		return ErrInvalidCheckpoint
+	}
+	if snapshot.FlyHP == 0 && snapshot.Alive {
+		snapshot.FlyHP = flyHPMax
 	}
 
 	snapshot.Swatter.Attacking = false
@@ -214,6 +227,7 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	if !g.state.Alive {
 		g.state.Episode++
 		g.state.Alive = true
+		g.state.FlyHP = flyHPMax
 		g.state.SurvivalMS = 0
 		g.resetFly()
 	}
@@ -221,11 +235,7 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	g.state.Swatter = swatter
 	if collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio) {
 		g.state.Tick++
-		g.state.Alive = false
-		g.swingPhase = SwingIdle
-		g.swingRemaining = 0
-		g.state.Swatter.Attacking = false
-		g.state.Swatter.Phase = SwingIdle
+		g.applyHit()
 		return g.state, nil
 	}
 
@@ -249,9 +259,23 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	g.state.Tick++
 	g.state.SurvivalMS += int64(math.Round(g.config.StepSeconds * 1000))
 	g.state.LastAction = action
-	g.state.Alive = !collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio)
+	if collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio) {
+		g.applyHit()
+	}
 
 	return g.state, nil
+}
+
+func (g *Game) applyHit() {
+	g.state.FlyHP = math.Max(0, math.Round((g.state.FlyHP-flyHitDamage)*10)/10)
+	g.swingPhase = SwingIdle
+	g.swingRemaining = 0
+	g.state.Swatter.Attacking = false
+	g.state.Swatter.Phase = SwingIdle
+	if g.state.FlyHP <= 0 {
+		g.state.FlyHP = 0
+		g.state.Alive = false
+	}
 }
 
 func (g *Game) advanceSwing() {

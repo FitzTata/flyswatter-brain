@@ -6,6 +6,7 @@ describe('decodeServerMessage', () => {
     tick: 1,
     episode: 2,
     alive: true,
+    fly_hp: 1,
     survival_ms: 50,
     last_action: 'straight',
     fly: {

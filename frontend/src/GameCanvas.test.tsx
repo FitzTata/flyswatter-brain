@@ -11,6 +11,7 @@ describe('GameCanvas', () => {
           tick: 1,
           episode: 1,
           alive: true,
+          fly_hp: 1,
           survival_ms: 20,
           last_action: 'straight',
           fly: { position: { x: 0.5, y: 0.5 }, heading: 0, speed: 0.28, radius: 0.025 },
