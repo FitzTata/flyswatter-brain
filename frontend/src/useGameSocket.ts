@@ -31,9 +31,15 @@ export function useGameSocket(input: GameInput): GameSocketState {
       socket = new WebSocket(websocketURL())
 
       socket.onopen = () => {
+        if (!active) {
+          return
+        }
         setState((current) => ({ ...current, status: 'connected', error: null }))
       }
       socket.onmessage = (event) => {
+        if (!active) {
+          return
+        }
         const message = decodeServerMessage(String(event.data))
         if (!message) {
           setState((current) => ({ ...current, error: 'Invalid server response' }))
@@ -46,6 +52,9 @@ export function useGameSocket(input: GameInput): GameSocketState {
         setState((current) => ({ ...current, snapshot: message.snapshot, error: null }))
       }
       socket.onerror = () => {
+        if (!active) {
+          return
+        }
         setState((current) => ({ ...current, error: 'WebSocket connection failed' }))
       }
       socket.onclose = () => {

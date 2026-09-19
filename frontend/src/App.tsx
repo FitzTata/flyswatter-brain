@@ -44,7 +44,7 @@ function App() {
                 <small>go run ./cmd/server</small>
               </div>
             )}
-            <div className="canvas-instruction">MOVE TO AIM · HOLD TO STRIKE</div>
+            <div className="canvas-instruction">MOVE TO AIM · CLICK TO STRIKE</div>
           </div>
         </div>
 

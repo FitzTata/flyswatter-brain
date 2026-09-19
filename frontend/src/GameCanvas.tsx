@@ -7,8 +7,14 @@ interface GameCanvasProps {
   onInputChange: (input: GameInput) => void
 }
 
+const strikeDurationMS = 75
+
 export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const positionRef = useRef(input.swatter_position)
+  const strikeActiveRef = useRef(false)
+  const strikeLockedRef = useRef(false)
+  const strikeTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -30,26 +36,60 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     }
   }, [snapshot, input])
 
-  const updatePosition = (event: PointerEvent<HTMLCanvasElement>, attacking: boolean) => {
+  useEffect(
+    () => () => {
+      window.clearTimeout(strikeTimerRef.current)
+    },
+    [],
+  )
+
+  const updatePosition = (event: PointerEvent<HTMLCanvasElement>) => {
     const position = pointerPosition(event)
-    onInputChange({ swatter_position: position, attacking })
+    positionRef.current = position
+    onInputChange({ swatter_position: position, attacking: strikeActiveRef.current })
+  }
+
+  const strike = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (strikeLockedRef.current || strikeActiveRef.current) {
+      return
+    }
+
+    const position = pointerPosition(event)
+    positionRef.current = position
+    strikeLockedRef.current = true
+    strikeActiveRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onInputChange({ swatter_position: position, attacking: true })
+
+    strikeTimerRef.current = window.setTimeout(() => {
+      strikeActiveRef.current = false
+      onInputChange({ swatter_position: positionRef.current, attacking: false })
+    }, strikeDurationMS)
+  }
+
+  const release = (event: PointerEvent<HTMLCanvasElement>) => {
+    strikeLockedRef.current = false
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const cancel = () => {
+    window.clearTimeout(strikeTimerRef.current)
+    strikeActiveRef.current = false
+    strikeLockedRef.current = false
+    onInputChange({ swatter_position: positionRef.current, attacking: false })
   }
 
   return (
     <canvas
       ref={canvasRef}
       className="game-canvas"
-      aria-label="Fly arena. Move the pointer to aim and hold to strike."
-      onPointerMove={(event) => updatePosition(event, input.attacking)}
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId)
-        updatePosition(event, true)
-      }}
-      onPointerUp={(event) => {
-        event.currentTarget.releasePointerCapture(event.pointerId)
-        updatePosition(event, false)
-      }}
-      onPointerCancel={(event) => updatePosition(event, false)}
+      aria-label="Fly arena. Move the pointer to aim and click to strike."
+      onPointerMove={updatePosition}
+      onPointerDown={strike}
+      onPointerUp={release}
+      onPointerCancel={cancel}
     />
   )
 }

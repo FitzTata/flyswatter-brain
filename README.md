@@ -91,7 +91,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`, move the pointer to aim the flyswatter, and hold the primary button to strike.
+Open `http://127.0.0.1:5173`, move the pointer to aim the flyswatter, and click to strike.
 
 Run the frontend checks:
 
@@ -104,4 +104,4 @@ npm run build
 
 ## Status
 
-The interactive random-controller baseline is implemented. The MaleCNS worker is not connected yet. The implementation plan is available in [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md).
+The interactive random-controller baseline is implemented. The MaleCNS worker is not connected yet. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).

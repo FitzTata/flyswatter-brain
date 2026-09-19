@@ -37,6 +37,18 @@ Object.defineProperty(HTMLCanvasElement.prototype, 'getBoundingClientRect', {
   })),
 })
 
+Object.defineProperty(HTMLCanvasElement.prototype, 'setPointerCapture', {
+  value: vi.fn(),
+})
+
+Object.defineProperty(HTMLCanvasElement.prototype, 'hasPointerCapture', {
+  value: vi.fn(() => true),
+})
+
+Object.defineProperty(HTMLCanvasElement.prototype, 'releasePointerCapture', {
+  value: vi.fn(),
+})
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()

@@ -87,6 +87,7 @@ type Game struct {
 	config     Config
 	controller Controller
 	state      Snapshot
+	attackHeld bool
 }
 
 func New(config Config, controller Controller) *Game {
@@ -110,20 +111,17 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	if !validPosition(input.SwatterPosition) {
 		return Snapshot{}, ErrInvalidInput
 	}
+	strike := input.Attacking && !g.attackHeld
+	g.attackHeld = input.Attacking
 	swatter := Swatter{
 		Position: Vec2{
 			X: clamp(input.SwatterPosition.X, 0, 1),
 			Y: clamp(input.SwatterPosition.Y, 0, 1),
 		},
 		Radius:    g.config.SwatterRadius,
-		Attacking: input.Attacking,
+		Attacking: strike,
 	}
 	if !g.state.Alive {
-		g.state.Swatter = swatter
-		if input.Attacking {
-			g.state.Tick++
-			return g.state, nil
-		}
 		g.state.Episode++
 		g.state.Alive = true
 		g.state.SurvivalMS = 0
