@@ -37,10 +37,10 @@ func TestGameStep(t *testing.T) {
 		wantSpeed     float64
 		wantMinTravel float64
 	}{
-		{name: "straight", action: ActionStraight, wantHeading: 0, wantSpeed: 0.18, wantMinTravel: 0.003},
-		{name: "left", action: ActionTurnLeft, wantHeading: -math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.003},
-		{name: "right", action: ActionTurnRight, wantHeading: math.Pi / 12, wantSpeed: 0.18, wantMinTravel: 0.003},
-		{name: "escape", action: ActionEscape, wantHeading: 0, wantSpeed: 0.432, wantMinTravel: 0.008},
+		{name: "straight", action: ActionStraight, wantHeading: 0, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "left", action: ActionTurnLeft, wantHeading: -math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "right", action: ActionTurnRight, wantHeading: math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "escape", action: ActionEscape, wantHeading: 0, wantSpeed: 0.672, wantMinTravel: 0.013},
 	}
 
 	for _, tt := range tests {

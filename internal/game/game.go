@@ -100,7 +100,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		StepSeconds:      0.02,
-		FlySpeed:         0.18,
+		FlySpeed:         0.28,
 		FlyRadius:        0.025,
 		SwatterRadius:    0.09,
 		TurnRadians:      math.Pi / 12,
