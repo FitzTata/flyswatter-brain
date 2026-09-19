@@ -102,6 +102,25 @@ npm test
 npm run build
 ```
 
+## MaleCNS controller
+
+The neural worker uses the complete retained MaleCNS v1.0 graph through the pinned StonkFly submodule. On Windows, setup requires Python 3.14 and a C++17 compiler, downloads about 1.1 GB of source data, verifies its checksums, and builds local graph artifacts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup_neural.ps1
+```
+
+The downloaded dataset, compiled kernel, and Python environment remain under ignored local directories.
+
+The server uses `auto` mode by default: it starts MaleCNS when the worker is ready and otherwise reports the error and falls back to the seeded random controller. To require MaleCNS and fail instead of falling back:
+
+```powershell
+$env:FLYSWATTER_CONTROLLER = "malecns"
+go run ./cmd/server
+```
+
+Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker receives only a rendered RGB arena frame, advances 50 ms of model time, and maps DNp20/DNpe017 spike counts to the four game commands. This is an engineered interface, not a validated natural fly motor decoder. See [`THIRD_PARTY.md`](THIRD_PARTY.md) for attribution.
+
 ## Status
 
-The interactive random-controller baseline is implemented. The MaleCNS worker is not connected yet. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).
+The interactive random-controller baseline and MaleCNS worker integration are implemented. Neural activity visualization and learning remain post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).

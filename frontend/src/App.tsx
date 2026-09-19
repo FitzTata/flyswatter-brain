@@ -57,7 +57,11 @@ function App() {
           <Metric label="Episode" value={snapshot?.episode ?? '—'} />
           <Metric label="Brain tick" value={snapshot?.tick ?? '—'} />
           <Metric label="Survival" value={formatDuration(snapshot?.survival_ms)} />
-          <Metric label="Controller" value="RANDOM" warning />
+          <Metric
+            label="Controller"
+            value={snapshot?.neural_activity ? 'MALECNS' : 'RANDOM'}
+            warning={!snapshot?.neural_activity}
+          />
 
           <div className="action-readout">
             <span>LAST COMMAND</span>
@@ -76,10 +80,11 @@ function App() {
       <section className="disclosure">
         <span>01</span>
         <p>
-          The backend currently uses a seeded random controller. No connectome is attached and no learning is
-          claimed in this build.
+          {snapshot?.neural_activity
+            ? 'MaleCNS v1.0 produces the commands through an engineered DNp20 / DNpe017 readout. Learning is disabled.'
+            : 'The backend currently uses a seeded random controller. No connectome is attached and no learning is claimed in this build.'}
         </p>
-        <span>CONTROL BASELINE</span>
+        <span>{snapshot?.neural_activity ? 'CONNECTOME ONLINE' : 'CONTROL BASELINE'}</span>
       </section>
     </main>
   )

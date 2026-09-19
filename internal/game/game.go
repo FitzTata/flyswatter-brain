@@ -44,23 +44,47 @@ type Input struct {
 }
 
 type Observation struct {
-	Tick    uint64
-	Fly     Fly
-	Swatter Swatter
+	Tick    uint64  `json:"tick"`
+	Fly     Fly     `json:"fly"`
+	Swatter Swatter `json:"swatter"`
 }
 
 type Snapshot struct {
-	Tick       uint64  `json:"tick"`
-	Episode    uint64  `json:"episode"`
-	Alive      bool    `json:"alive"`
-	SurvivalMS int64   `json:"survival_ms"`
-	LastAction Action  `json:"last_action"`
-	Fly        Fly     `json:"fly"`
-	Swatter    Swatter `json:"swatter"`
+	Tick           uint64          `json:"tick"`
+	Episode        uint64          `json:"episode"`
+	Alive          bool            `json:"alive"`
+	SurvivalMS     int64           `json:"survival_ms"`
+	LastAction     Action          `json:"last_action"`
+	Fly            Fly             `json:"fly"`
+	Swatter        Swatter         `json:"swatter"`
+	NeuralActivity *NeuralActivity `json:"neural_activity,omitempty"`
+}
+
+type NeuralActivity struct {
+	Model        string       `json:"model"`
+	ModelTimeMS  float64      `json:"model_time_ms"`
+	LeftHz       float64      `json:"left_hz"`
+	RightHz      float64      `json:"right_hz"`
+	DifferenceHz float64      `json:"difference_hz"`
+	GateSpikes   int          `json:"gate_spikes"`
+	TotalSpikes  int          `json:"total_spikes"`
+	StepSeconds  float64      `json:"step_seconds"`
+	Nodes        []NeuralNode `json:"nodes"`
+}
+
+type NeuralNode struct {
+	ID     string  `json:"id"`
+	Label  string  `json:"label"`
+	Spikes int     `json:"spikes"`
+	RateHz float64 `json:"rate_hz"`
 }
 
 type Controller interface {
 	NextAction(context.Context, Observation) (Action, error)
+}
+
+type NeuralActivityProvider interface {
+	LastNeuralActivity() *NeuralActivity
 }
 
 type Config struct {
@@ -140,6 +164,10 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	}
 	if !validAction(action) {
 		return Snapshot{}, ErrInvalidAction
+	}
+	g.state.NeuralActivity = nil
+	if provider, ok := g.controller.(NeuralActivityProvider); ok {
+		g.state.NeuralActivity = provider.LastNeuralActivity()
 	}
 
 	g.apply(action)

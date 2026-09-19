@@ -26,6 +26,26 @@ export interface Snapshot {
   last_action: Action
   fly: Fly
   swatter: Swatter
+  neural_activity?: NeuralActivity
+}
+
+export interface NeuralActivity {
+  model: string
+  model_time_ms: number
+  left_hz: number
+  right_hz: number
+  difference_hz: number
+  gate_spikes: number
+  total_spikes: number
+  step_seconds: number
+  nodes: NeuralNode[]
+}
+
+export interface NeuralNode {
+  id: string
+  label: string
+  spikes: number
+  rate_hz: number
 }
 
 export interface GameInput {
@@ -68,7 +88,23 @@ function isSnapshot(value: unknown): value is Snapshot {
     typeof value.survival_ms === 'number' &&
     isAction(value.last_action) &&
     isFly(value.fly) &&
-    isSwatter(value.swatter)
+    isSwatter(value.swatter) &&
+    (value.neural_activity === undefined || isNeuralActivity(value.neural_activity))
+  )
+}
+
+function isNeuralActivity(value: unknown): value is NeuralActivity {
+  return (
+    isRecord(value) &&
+    typeof value.model === 'string' &&
+    typeof value.model_time_ms === 'number' &&
+    typeof value.left_hz === 'number' &&
+    typeof value.right_hz === 'number' &&
+    typeof value.difference_hz === 'number' &&
+    typeof value.gate_spikes === 'number' &&
+    typeof value.total_spikes === 'number' &&
+    typeof value.step_seconds === 'number' &&
+    Array.isArray(value.nodes)
   )
 }
 

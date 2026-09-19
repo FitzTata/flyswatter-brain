@@ -18,6 +18,15 @@ func (c fixedController) NextAction(context.Context, Observation) (Action, error
 	return c.action, c.err
 }
 
+type telemetryController struct {
+	fixedController
+	activity NeuralActivity
+}
+
+func (c telemetryController) LastNeuralActivity() *NeuralActivity {
+	return &c.activity
+}
+
 func TestGameStep(t *testing.T) {
 	t.Parallel()
 
@@ -127,4 +136,20 @@ func TestRandomControllerIsDeterministic(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, firstActions, secondActions)
+}
+
+func TestGameIncludesNeuralActivity(t *testing.T) {
+	t.Parallel()
+
+	instance := New(DefaultConfig(), telemetryController{
+		fixedController: fixedController{action: ActionStraight},
+		activity:        NeuralActivity{Model: "MaleCNS v1.0", RightHz: 14},
+	})
+
+	snapshot, err := instance.Step(context.Background(), Input{})
+
+	require.NoError(t, err)
+	require.NotNil(t, snapshot.NeuralActivity)
+	assert.Equal(t, "MaleCNS v1.0", snapshot.NeuralActivity.Model)
+	assert.Equal(t, 14.0, snapshot.NeuralActivity.RightHz)
 }
