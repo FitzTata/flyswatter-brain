@@ -129,4 +129,8 @@ Set `FLYSWATTER_CONTROLLER=random` to force the baseline. The neural worker rece
 
 ## Status
 
-The interactive random-controller baseline and MaleCNS worker integration are implemented. Neural activity visualization and learning remain post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).
+The interactive baseline, MaleCNS worker, and neural activity readout are implemented. Learning remains post-MVP work. See the [`MVP plan`](docs/MVP_PLAN.md) and [`post-MVP backlog`](docs/BACKLOG.md).
+
+## License
+
+Project-owned code is available under the [MIT License](LICENSE). StonkFly and MaleCNS data retain their respective third-party licenses; see [`THIRD_PARTY.md`](THIRD_PARTY.md).
