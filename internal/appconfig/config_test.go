@@ -25,6 +25,9 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 0.08, config.Game.SwingActiveSeconds)
 	assert.Equal(t, 2.0, config.NeuralStepMS)
 	assert.Equal(t, 2*time.Minute, config.NeuralStartupTimeout)
+	assert.Equal(t, "info", config.LogLevel)
+	assert.Equal(t, "json", config.LogFormat)
+	assert.Equal(t, "", config.LogFile)
 }
 
 func TestLoadOverrides(t *testing.T) {

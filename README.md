@@ -70,10 +70,14 @@ Runtime behavior is configured through environment variables:
 
 - `FLYSWATTER_GAME_STEP_MS`, `FLYSWATTER_FLY_SPEED`, `FLYSWATTER_FLY_RADIUS`
 - `FLYSWATTER_SWATTER_RADIUS`, `FLYSWATTER_TURN_DEGREES`, `FLYSWATTER_ESCAPE_MULTIPLIER`
+- `FLYSWATTER_SWING_WINDUP_MS`, `FLYSWATTER_SWING_ACTIVE_MS`
 - `FLYSWATTER_NEURAL_STEP_MS`, `FLYSWATTER_NEURAL_STARTUP_TIMEOUT`
 - `FLYSWATTER_CONTROLLER`, `FLYSWATTER_RUNS_DIR`, `FLYSWATTER_PYTHON`, `STONKFLY_DATA`
+- `FLYSWATTER_LOG_LEVEL`, `FLYSWATTER_LOG_FORMAT`, `FLYSWATTER_LOG_FILE`
 
 Invalid numeric values fail startup instead of silently falling back. Browser timing and visual constants live in `frontend/src/config.ts`.
+
+Logging defaults to structured JSON on stdout. Set `FLYSWATTER_LOG_FILE=runs/app.log` to also append the same stream for local clone-and-run debugging. Per-tick game history stays in `runs/<session>/events.jsonl`, not in the operational log.
 
 Run the backend checks:
 

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import sys
 import time
@@ -21,6 +22,13 @@ from frame import THRESHOLD_HZ, action_from_decode, render_frame
 
 READOUT_WINDOW_MS = 100
 
+logging.basicConfig(
+    level=os.environ.get("FLYSWATTER_LOG_LEVEL", "INFO").upper(),
+    format="%(levelname)s component=neural-worker %(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("neural-worker")
+
 
 def main() -> None:
     brain = VisualMemoryBrain()
@@ -36,6 +44,7 @@ def main() -> None:
             "connections": int(len(brain.post)),
         }
     )
+    logger.info("ready neurons=%s connections=%s", brain.n, len(brain.post))
 
     for line in sys.stdin:
         try:
@@ -70,6 +79,7 @@ def main() -> None:
                 }
             )
         except Exception as error:
+            logger.exception("step failed")
             send({"type": "error", "error": str(error)})
 
 

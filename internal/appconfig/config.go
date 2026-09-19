@@ -23,6 +23,9 @@ type Config struct {
 	DataDir              string
 	NeuralStartupTimeout time.Duration
 	NeuralStepMS         float64
+	LogLevel             string
+	LogFormat            string
+	LogFile              string
 	Game                 game.Config
 }
 
@@ -108,6 +111,9 @@ func load(root string, getenv func(string) string) (Config, error) {
 		DataDir:              valueOr(getenv("STONKFLY_DATA"), filepath.Join(root, ".local", "malecns")),
 		NeuralStartupTimeout: startupTimeout,
 		NeuralStepMS:         neuralStepMS,
+		LogLevel:             valueOr(getenv("FLYSWATTER_LOG_LEVEL"), "info"),
+		LogFormat:            valueOr(getenv("FLYSWATTER_LOG_FORMAT"), "json"),
+		LogFile:              getenv("FLYSWATTER_LOG_FILE"),
 		Game:                 gameConfig,
 	}, nil
 }

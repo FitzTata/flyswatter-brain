@@ -97,6 +97,8 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	s.logger.Info("session connected", "session_id", session)
+
 	for {
 		var message clientMessage
 		if err := wsjson.Read(request.Context(), connection, &message); err != nil {

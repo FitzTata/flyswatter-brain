@@ -12,21 +12,36 @@ import (
 
 	"github.com/FitzTata/flyswatter-brain/internal/api"
 	"github.com/FitzTata/flyswatter-brain/internal/appconfig"
+	"github.com/FitzTata/flyswatter-brain/internal/applog"
 	"github.com/FitzTata/flyswatter-brain/internal/game"
 	"github.com/FitzTata/flyswatter-brain/internal/neural"
 	"github.com/FitzTata/flyswatter-brain/internal/persistence"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	config, err := appconfig.Load()
+	if err != nil {
+		slog.Error("load config", "error", err)
+		os.Exit(1)
+	}
+	logger, logCloser, err := applog.New(applog.Config{
+		Level:  config.LogLevel,
+		Format: config.LogFormat,
+		File:   config.LogFile,
+	})
+	if err != nil {
+		slog.Error("configure logger", "error", err)
+		os.Exit(1)
+	}
+	if logCloser != nil {
+		defer func() {
+			_ = logCloser.Close()
+		}()
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := appconfig.Load()
-	if err != nil {
-		logger.Error("load config", "error", err)
-		os.Exit(1)
-	}
 	neuralController := connectNeuralController(ctx, logger, config)
 	if neuralController != nil {
 		defer func() {
@@ -77,6 +92,9 @@ func connectNeuralController(ctx context.Context, logger *slog.Logger, config ap
 		DataDir:        config.DataDir,
 		StartupTimeout: config.NeuralStartupTimeout,
 		StepDurationMS: config.NeuralStepMS,
+		ExtraEnv: []string{
+			"FLYSWATTER_LOG_LEVEL=" + config.LogLevel,
+		},
 	})
 	if err == nil {
 		logger.Info("using MaleCNS controller")
