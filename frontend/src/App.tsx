@@ -3,14 +3,7 @@ import './App.css'
 import { UI_CONFIG } from './config'
 import { GameCanvas } from './GameCanvas'
 import { NeuralGraph } from './NeuralGraph'
-import {
-  loadMode,
-  loadPlayer,
-  saveMode,
-  savePlayer,
-  type ControllerMode,
-  type PlayerIdentity,
-} from './player'
+import { loadPlayer, savePlayer, type PlayerIdentity } from './player'
 import type { GameInput } from './types'
 import { useGameSocket } from './useGameSocket'
 
@@ -25,9 +18,8 @@ const initialInput: GameInput = {
 function App() {
   const [input, setInput] = useState(initialInput)
   const [player, setPlayer] = useState<PlayerIdentity | null>(() => loadPlayer())
-  const [mode, setMode] = useState<ControllerMode>(() => loadMode())
   const [nameDraft, setNameDraft] = useState('')
-  const { status, snapshot, error, replaced } = useGameSocket(input, player, mode)
+  const { status, snapshot, error, replaced } = useGameSocket(input, player)
 
   const onSubmitName = (event: FormEvent) => {
     event.preventDefault()
@@ -35,11 +27,6 @@ function App() {
       return
     }
     setPlayer(savePlayer(nameDraft))
-  }
-
-  const onModeChange = (next: ControllerMode) => {
-    saveMode(next)
-    setMode(next)
   }
 
   return (
@@ -120,33 +107,10 @@ function App() {
           </div>
           <Metric
             label="Controller"
-            value={controllerLabel(mode, Boolean(snapshot?.neural_activity))}
-            warning={mode !== 'random' && !snapshot?.neural_activity}
-            hint="Who steers the fly: MaleCNS or random."
+            value={snapshot?.neural_activity ? 'SHARED LEARN' : 'SHARED?'}
+            warning={!snapshot?.neural_activity}
+            hint="MaleCNS shared weights steer the fly."
           />
-
-          <div className="mode-picker" role="group" aria-label="Controller mode">
-            <span className="mode-picker__label">
-              WEIGHTS
-              <Hint text="Shared learns together. Static is frozen. Random skips the brain." />
-            </span>
-            {(
-              [
-                ['shared', 'Shared'],
-                ['static', 'Static'],
-                ['random', 'Random'],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={mode === value ? 'mode-picker__option mode-picker__option--active' : 'mode-picker__option'}
-                onClick={() => onModeChange(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
 
           <div className="action-readout">
             <span>
@@ -172,10 +136,10 @@ function App() {
       <section className="disclosure">
         <span>01</span>
         <div className="disclosure__body">
-          <p>{disclosureText(mode, Boolean(snapshot?.neural_activity))}</p>
+          <p>{disclosureText(Boolean(snapshot?.neural_activity))}</p>
           <GithubLink />
         </div>
-        <span>{mode === 'random' ? 'CONTROL BASELINE' : snapshot?.neural_activity ? 'CONNECTOME ONLINE' : 'WAITING'}</span>
+        <span>{snapshot?.neural_activity ? 'CONNECTOME ONLINE' : 'WAITING'}</span>
       </section>
     </main>
   )
@@ -227,28 +191,10 @@ function GithubLink() {
   )
 }
 
-function controllerLabel(mode: ControllerMode, hasNeural: boolean) {
-  if (mode === 'random') {
-    return 'RANDOM'
-  }
-  if (!hasNeural) {
-    return mode === 'shared' ? 'SHARED?' : 'STATIC?'
-  }
-  return mode === 'shared' ? 'SHARED LEARN' : 'STATIC'
-}
-
-function disclosureText(mode: ControllerMode, hasNeural: boolean) {
-  if (mode === 'random') {
-    return 'Seeded random controller. No connectome and no learning.'
-  }
-  if (mode === 'shared') {
-    return hasNeural
-      ? 'Shared MaleCNS weights with engineered dopamine plasticity. Weight changes are not validated learning.'
-      : 'Shared learning mode selected. Waiting for MaleCNS worker.'
-  }
+function disclosureText(hasNeural: boolean) {
   return hasNeural
-    ? 'MaleCNS v1.0 with frozen baseline weights. Learning is disabled.'
-    : 'Static MaleCNS mode selected. Waiting for neural worker.'
+    ? 'Shared MaleCNS weights with engineered dopamine plasticity. Weight changes are not validated learning.'
+    : 'Waiting for MaleCNS worker.'
 }
 
 function formatDuration(value?: number) {

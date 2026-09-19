@@ -11,7 +11,7 @@ describe('player identity', () => {
 
 describe('websocketURL', () => {
   it('includes session player and mode', () => {
-    const url = websocketURL('alex', 'shared')
+    const url = websocketURL('alex')
 
     expect(url).toContain('session=alex')
     expect(url).toContain('player=alex')

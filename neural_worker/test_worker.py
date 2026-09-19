@@ -8,8 +8,10 @@ from frame import FRAME_SIZE, action_from_decode, render_frame
     [
         (5.0, 1, "turn_right"),
         (-5.0, 1, "turn_left"),
+        (5.0, 0, "turn_right"),
+        (-5.0, 0, "turn_left"),
         (0.5, 1, "escape"),
-        (5.0, 0, "straight"),
+        (0.5, 0, "straight"),
     ],
 )
 def test_action_from_decode(difference_hz, gate_spikes, expected):

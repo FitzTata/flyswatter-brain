@@ -177,26 +177,6 @@ h1 span {
   flex-shrink: 0;
 }
 
-.mode-picker {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin: 10px 0 12px;
-  padding: 0 16px;
-  flex-shrink: 0;
-}
-
-.mode-picker__label {
-  grid-column: 1 / -1;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .hint {
   position: relative;
   display: inline-flex;
@@ -245,24 +225,6 @@ h1 span {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-
-.mode-picker__option {
-  padding: 10px 8px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.mode-picker__option--active {
-  border-color: var(--acid);
-  color: var(--acid);
-  background: rgba(199, 255, 84, 0.1);
-}
-
 
 .experiment {
   display: grid;
@@ -717,7 +679,6 @@ h1 span {
   .action-readout,
   .neural-graph,
   .hp-meter,
-  .mode-picker,
   .life-state,
   .error-message {
     grid-column: 1 / -1;

@@ -62,7 +62,7 @@ func TestWebsocketSession(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=shared"
 	connection, _, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
 		HTTPHeader: http.Header{"Origin": []string{"http://localhost:5173"}},
 	})
@@ -114,7 +114,7 @@ func TestWebsocketReplacesExistingPlayerSession(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=shared"
 	first, _, err := websocket.Dial(context.Background(), wsURL, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = first.CloseNow() })
@@ -170,7 +170,7 @@ func TestWebsocketRestoresAndSavesSession(t *testing.T) {
 	t.Cleanup(server.Close)
 	connection, _, err := websocket.Dial(
 		context.Background(),
-		"ws"+strings.TrimPrefix(server.URL, "http")+"/ws?session=alex&mode=random",
+		"ws"+strings.TrimPrefix(server.URL, "http")+"/ws?session=alex&mode=shared",
 		nil,
 	)
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func TestWebsocketRejectsUnknownMessage(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=random"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?session=alex&mode=shared"
 	connection, _, err := websocket.Dial(context.Background(), wsURL, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = connection.CloseNow() })

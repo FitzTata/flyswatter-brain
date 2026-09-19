@@ -1,7 +1,4 @@
-export type ControllerMode = 'shared' | 'static' | 'random'
-
 const PLAYER_KEY = 'flyswatter.player'
-const MODE_KEY = 'flyswatter.mode'
 
 export interface PlayerIdentity {
   name: string
@@ -42,18 +39,6 @@ export function playerIdFromName(name: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48)
   return slug || 'player'
-}
-
-export function loadMode(): ControllerMode {
-  const raw = window.localStorage.getItem(MODE_KEY)
-  if (raw === 'shared' || raw === 'static' || raw === 'random') {
-    return raw
-  }
-  return 'static'
-}
-
-export function saveMode(mode: ControllerMode) {
-  window.localStorage.setItem(MODE_KEY, mode)
 }
 
 function readCookie(name: string): string | null {

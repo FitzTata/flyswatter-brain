@@ -52,13 +52,11 @@ func main() {
 	}
 
 	server := api.NewServer(logger, func(seed int64, mode neural.Mode) (*game.Game, error) {
-		if mode == neural.ModeRandom || hub == nil || !hub.Available() {
-			if mode == neural.ModeShared || mode == neural.ModeStatic {
-				if config.ControllerMode == "malecns" {
-					return nil, errors.New("MaleCNS controller unavailable")
-				}
-				logger.Warn("MaleCNS unavailable; falling back to random", "requested_mode", mode)
+		if hub == nil || !hub.Available() {
+			if config.ControllerMode == "malecns" {
+				return nil, errors.New("MaleCNS controller unavailable")
 			}
+			logger.Warn("MaleCNS unavailable; falling back to random")
 			return game.New(config.Game, game.NewRandomController(seed)), nil
 		}
 		controller, err := hub.ControllerFor(mode, seed)
@@ -115,6 +113,6 @@ func connectNeuralHub(ctx context.Context, logger *slog.Logger, config appconfig
 		logger.Error("MaleCNS controller required but unavailable", "error", err)
 		os.Exit(1)
 	}
-	logger.Warn("MaleCNS unavailable; shared/static fall back to random", "error", err)
+	logger.Warn("MaleCNS unavailable; sessions fall back to random", "error", err)
 	return neural.NewHub(nil, config.RunsDir)
 }

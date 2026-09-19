@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { UI_CONFIG } from './config'
@@ -27,7 +27,6 @@ function seedPlayer() {
     'flyswatter.player',
     JSON.stringify({ name: 'Alex', id: 'alex' }),
   )
-  window.localStorage.setItem('flyswatter.mode', 'static')
 }
 
 describe('App', () => {
@@ -46,21 +45,12 @@ describe('App', () => {
     expect(MockWebSocket.instances).toHaveLength(0)
   })
 
-  it('connects with player session and mode query', () => {
+  it('connects with player session and shared mode', () => {
     seedPlayer()
     render(<App />)
 
     expect(MockWebSocket.instances[0].url).toContain('session=alex')
-    expect(MockWebSocket.instances[0].url).toContain('mode=static')
-  })
-
-  it('reconnects with shared mode when selected', () => {
-    seedPlayer()
-    render(<App />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Shared' }))
-
-    expect(MockWebSocket.instances.at(-1)?.url).toContain('mode=shared')
+    expect(MockWebSocket.instances[0].url).toContain('mode=shared')
   })
 
   it('renders live backend telemetry', () => {

@@ -166,6 +166,14 @@ func (g *Game) Snapshot() Snapshot {
 }
 
 func (g *Game) ReportDeath() {
+	g.ReportHit()
+}
+
+func (g *Game) ReportHit() {
+	if reporter, ok := g.controller.(interface{ ReportHit() }); ok {
+		reporter.ReportHit()
+		return
+	}
 	if reporter, ok := g.controller.(interface{ ReportDeath() }); ok {
 		reporter.ReportDeath()
 	}
@@ -276,6 +284,7 @@ func (g *Game) applyHit() {
 		g.state.FlyHP = 0
 		g.state.Alive = false
 	}
+	g.ReportHit()
 }
 
 func (g *Game) advanceSwing() {

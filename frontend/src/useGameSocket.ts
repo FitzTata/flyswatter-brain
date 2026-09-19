@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { UI_CONFIG } from './config'
-import type { ControllerMode, PlayerIdentity } from './player'
+import type { PlayerIdentity } from './player'
 import { decodeServerMessage, type ConnectionStatus, type GameInput, type Snapshot } from './types'
 
 export interface GameSocketState {
@@ -13,7 +13,6 @@ export interface GameSocketState {
 export function useGameSocket(
   input: GameInput,
   player: PlayerIdentity | null,
-  mode: ControllerMode,
 ): GameSocketState {
   const inputRef = useRef(input)
   const inFlightRef = useRef(false)
@@ -49,7 +48,7 @@ export function useGameSocket(
         replaced: false,
         error: null,
       }))
-      socket = new WebSocket(websocketURL(player.id, mode))
+      socket = new WebSocket(websocketURL(player.id))
 
       socket.onopen = () => {
         if (!active) {
@@ -126,12 +125,12 @@ export function useGameSocket(
       window.clearTimeout(reconnectTimer)
       socket?.close()
     }
-  }, [player, mode])
+  }, [player])
 
   return effectiveState
 }
 
-export function websocketURL(playerId: string, mode: ControllerMode): string {
+export function websocketURL(playerId: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
   const localHost =
     window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -142,6 +141,6 @@ export function websocketURL(playerId: string, mode: ControllerMode): string {
   const url = new URL(baseURL)
   url.searchParams.set('session', playerId)
   url.searchParams.set('player', playerId)
-  url.searchParams.set('mode', mode)
+  url.searchParams.set('mode', 'shared')
   return url.toString()
 }

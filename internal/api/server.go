@@ -158,7 +158,6 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 			continue
 		}
 
-		wasAlive := currentGame.Snapshot().Alive
 		snapshot, err := currentGame.Step(request.Context(), message.Input)
 		if err != nil {
 			if err := writeError(request.Context(), connection, err.Error()); err != nil {
@@ -166,14 +165,9 @@ func (s *Server) websocket(writer http.ResponseWriter, request *http.Request) {
 			}
 			continue
 		}
-		if wasAlive && !snapshot.Alive {
-			currentGame.ReportDeath()
-		}
 		if s.store != nil {
 			if err := s.store.Save(request.Context(), playerID, message.Input, snapshot); err != nil {
 				s.logger.Error("save session", "session", playerID, "error", err)
-				_ = writeError(request.Context(), connection, "save session")
-				return
 			}
 		}
 		if err := writeSnapshot(request.Context(), connection, snapshot); err != nil {

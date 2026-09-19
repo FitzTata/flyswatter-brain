@@ -47,11 +47,12 @@ def render_frame(observation: dict[str, Any]) -> np.ndarray:
 
 
 def action_from_decode(decoded: dict[str, Any]) -> str:
-    if decoded["gate_spikes"] == 0:
-        return "straight"
-    if abs(decoded["difference_hz"]) < THRESHOLD_HZ:
+    difference = float(decoded["difference_hz"])
+    if abs(difference) >= THRESHOLD_HZ:
+        return "turn_right" if difference > 0 else "turn_left"
+    if decoded["gate_spikes"] > 0:
         return "escape"
-    return "turn_right" if decoded["difference_hz"] > 0 else "turn_left"
+    return "straight"
 
 
 def point(position: dict[str, Any], width: int, height: int) -> tuple[int, int]:

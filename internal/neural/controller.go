@@ -134,7 +134,7 @@ func (c *Controller) NextActionWith(_ context.Context, observation game.Observat
 		return "", err
 	}
 	if _, err := c.stdin.Write(append(payload, '\n')); err != nil {
-		return "", fmt.Errorf("write worker request: %w", err)
+		return "", fmt.Errorf("neural worker unavailable (restart the server): %w", err)
 	}
 
 	message, err := c.read()

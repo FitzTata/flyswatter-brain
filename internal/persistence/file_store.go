@@ -155,10 +155,7 @@ func writeAtomic(path string, data []byte) error {
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
 
-	if err := temporary.Chmod(0o600); err != nil {
-		_ = temporary.Close()
-		return err
-	}
+	_ = temporary.Chmod(0o600)
 	if _, err := temporary.Write(data); err != nil {
 		_ = temporary.Close()
 		return err
@@ -166,5 +163,11 @@ func writeAtomic(path string, data []byte) error {
 	if err := temporary.Close(); err != nil {
 		return err
 	}
+	if err := os.Rename(temporaryPath, path); err == nil {
+		return nil
+	}
+	// Windows cannot rename over an existing destination.
+	_ = os.Remove(path)
 	return os.Rename(temporaryPath, path)
 }
+

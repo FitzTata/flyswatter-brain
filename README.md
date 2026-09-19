@@ -10,10 +10,7 @@ Browser game where a simulated fruit-fly connectome (MaleCNS) steers a virtual f
 - Live arena over WebSocket
 - Optional MaleCNS controller that turns retinal frames into `turn_left` / `turn_right` / `straight` / `escape`
 - Neural readout panel for descending-neuron activity
-- Three controller modes in the UI:
-  - **Shared** — MaleCNS with shared plastic weights
-  - **Static** — MaleCNS with frozen baseline weights
-  - **Random** — seeded baseline without the connectome
+- Shared MaleCNS weights with engineered dopamine plasticity across players
 
 First visit asks for a player name (saved locally). The same name in a second tab replaces the older session.
 
@@ -108,7 +105,7 @@ Browser canvas  --WebSocket-->  Go game server  --IPC-->  MaleCNS worker
   input + draw                 authority + sessions      spikes + decode
 ```
 
-Game checkpoints and replay logs live under `runs/<player>/`. Shared learning weights (if enabled) live under `runs/_shared/brain.npz`. MaleCNS membrane state is not restored across restarts; telemetry refreshes live.
+Game checkpoints and replay logs live under `runs/<player>/`. Shared learning weights live under `runs/_shared/brain.npz`. MaleCNS membrane state is not restored across restarts; telemetry refreshes live.
 
 Common env vars: `FLYSWATTER_ADDR`, `FLYSWATTER_CONTROLLER` (`auto` / `malecns` / `random`), `FLYSWATTER_RUNS_DIR`, `FLYSWATTER_PYTHON`, `STONKFLY_DATA`, `FLYSWATTER_LOG_LEVEL`, `FLYSWATTER_LOG_FILE`.
 
