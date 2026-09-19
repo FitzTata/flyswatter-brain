@@ -133,7 +133,12 @@ export function useGameSocket(
 
 export function websocketURL(playerId: string, mode: ControllerMode): string {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const baseURL = import.meta.env.VITE_WS_URL || `${protocol}://${window.location.hostname}:8080/ws`
+  const localHost =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const defaultURL = localHost
+    ? `${protocol}://${window.location.hostname}:8080/ws`
+    : `${protocol}://${window.location.host}/ws`
+  const baseURL = import.meta.env.VITE_WS_URL || defaultURL
   const url = new URL(baseURL)
   url.searchParams.set('session', playerId)
   url.searchParams.set('player', playerId)
