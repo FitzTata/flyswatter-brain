@@ -1,6 +1,8 @@
-import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { UI_CONFIG } from './config'
 import type { GameInput, Snapshot, Vec2 } from './types'
+
+type SwingPhase = 'idle' | 'windup' | 'strike'
 
 interface GameCanvasProps {
   snapshot: Snapshot | null
@@ -15,6 +17,10 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
   const strikeActiveRef = useRef(false)
   const strikeLockedRef = useRef(false)
   const strikeTimerRef = useRef<number | undefined>(undefined)
+  const windupTimerRef = useRef<number | undefined>(undefined)
+  const [localPhase, setLocalPhase] = useState<SwingPhase>('idle')
+
+  const swingPhase: SwingPhase = snapshot?.swatter.phase ?? localPhase
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -28,17 +34,18 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     if (snapshot) {
       drawFly(context, snapshot, width, height)
     }
-    drawSwatter(context, input, snapshot?.swatter.radius ?? 0.09, width, height)
+    drawSwatter(context, input, snapshot?.swatter.radius ?? 0.09, width, height, swingPhase)
 
     if (snapshot && !snapshot.alive) {
       context.fillStyle = 'rgba(255, 81, 47, 0.14)'
       context.fillRect(0, 0, width, height)
     }
-  }, [snapshot, input])
+  }, [snapshot, input, swingPhase])
 
   useEffect(
     () => () => {
       window.clearTimeout(strikeTimerRef.current)
+      window.clearTimeout(windupTimerRef.current)
     },
     [],
   )
@@ -64,17 +71,23 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     aspectRatioRef.current = aspectRatio
     strikeLockedRef.current = true
     strikeActiveRef.current = true
+    setLocalPhase('windup')
     event.currentTarget.setPointerCapture(event.pointerId)
     onInputChange({ swatter_position: position, attacking: true, arena_aspect_ratio: aspectRatio })
 
+    windupTimerRef.current = window.setTimeout(() => {
+      setLocalPhase('strike')
+    }, UI_CONFIG.swingWindupMS)
+
     strikeTimerRef.current = window.setTimeout(() => {
       strikeActiveRef.current = false
+      setLocalPhase('idle')
       onInputChange({
         swatter_position: positionRef.current,
         attacking: false,
         arena_aspect_ratio: aspectRatioRef.current,
       })
-    }, UI_CONFIG.strikeDurationMS)
+    }, UI_CONFIG.swingWindupMS + UI_CONFIG.strikeDurationMS)
   }
 
   const release = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -86,8 +99,10 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
 
   const cancel = () => {
     window.clearTimeout(strikeTimerRef.current)
+    window.clearTimeout(windupTimerRef.current)
     strikeActiveRef.current = false
     strikeLockedRef.current = false
+    setLocalPhase('idle')
     onInputChange({
       swatter_position: positionRef.current,
       attacking: false,
@@ -95,11 +110,23 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     })
   }
 
+  const canvasClass =
+    swingPhase === 'windup'
+      ? 'game-canvas game-canvas--windup'
+      : swingPhase === 'strike' || input.attacking
+        ? 'game-canvas game-canvas--striking'
+        : 'game-canvas'
+
   return (
     <canvas
       ref={canvasRef}
-      className={`game-canvas ${input.attacking ? 'game-canvas--striking' : ''}`}
-      style={{ '--strike-duration': `${UI_CONFIG.strikeDurationMS}ms` } as CSSProperties}
+      className={canvasClass}
+      style={
+        {
+          '--strike-duration': `${UI_CONFIG.strikeDurationMS}ms`,
+          '--swing-windup': `${UI_CONFIG.swingWindupMS}ms`,
+        } as CSSProperties
+      }
       aria-label="Fly arena. Move the pointer to aim and click to strike."
       onPointerMove={updatePosition}
       onPointerDown={strike}
@@ -180,24 +207,30 @@ function drawSwatter(
   radius: number,
   width: number,
   height: number,
+  phase: SwingPhase,
 ) {
   const x = input.swatter_position.x * width
   const y = input.swatter_position.y * height
   const size = radius * Math.min(width, height)
+  const striking = phase === 'strike'
+  const winding = phase === 'windup'
 
-  if (input.attacking) {
+  if (striking) {
     drawImpact(context, x, y, size)
   }
 
   context.save()
   context.translate(x, y)
-  context.rotate(-Math.PI / 4)
-  context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
+  context.rotate(-Math.PI / 4 + (winding ? -0.85 : striking ? 0.2 : 0))
+  if (winding) {
+    context.translate(0, -size * 0.35)
+  }
+  context.strokeStyle = striking || winding ? '#ff512f' : '#ff8a4c'
   context.fillStyle = 'rgba(255, 112, 67, 0.08)'
-  context.lineWidth = input.attacking ? 4.5 : 3.5
-  context.globalAlpha = input.attacking ? 1 : 0.78
-  context.shadowColor = input.attacking ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
-  context.shadowBlur = input.attacking ? 18 : 7
+  context.lineWidth = striking || winding ? 4.5 : 3.5
+  context.globalAlpha = striking || winding ? 1 : 0.78
+  context.shadowColor = striking || winding ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
+  context.shadowBlur = striking ? 18 : winding ? 12 : 7
   context.lineCap = 'round'
 
   context.beginPath()
@@ -213,25 +246,29 @@ function drawSwatter(
   context.lineTo(0, size * 2.52)
   context.stroke()
 
-  context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
+  context.strokeStyle = striking || winding ? '#ff512f' : '#ff8a4c'
   context.lineWidth = size * 0.11
   context.beginPath()
   context.moveTo(0, size * 1.6)
   context.lineTo(0, size * 2.48)
   context.stroke()
 
-  context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
-  context.fillStyle = input.attacking ? 'rgba(255, 81, 47, 0.18)' : 'rgba(255, 112, 67, 0.07)'
-  context.lineWidth = input.attacking ? 4.5 : 3.5
-  context.shadowColor = input.attacking ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
-  context.shadowBlur = input.attacking ? 18 : 7
+  context.strokeStyle = striking || winding ? '#ff512f' : '#ff8a4c'
+  context.fillStyle = striking
+    ? 'rgba(255, 81, 47, 0.18)'
+    : winding
+      ? 'rgba(255, 112, 67, 0.14)'
+      : 'rgba(255, 112, 67, 0.07)'
+  context.lineWidth = striking || winding ? 4.5 : 3.5
+  context.shadowColor = striking || winding ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
+  context.shadowBlur = striking ? 18 : winding ? 12 : 7
   context.beginPath()
   context.ellipse(0, 0, size * UI_CONFIG.swatterWidthRatio, size, 0, 0, Math.PI * 2)
   context.fill()
   context.stroke()
 
   context.shadowBlur = 0
-  context.lineWidth = input.attacking ? 1.6 : 1
+  context.lineWidth = striking ? 1.6 : 1
   for (let offset = -0.54; offset <= 0.54; offset += 0.27) {
     context.beginPath()
     context.moveTo(-size * 0.62, size * offset)

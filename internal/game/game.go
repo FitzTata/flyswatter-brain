@@ -33,10 +33,19 @@ type Fly struct {
 	Radius   float64 `json:"radius"`
 }
 
+type SwingPhase string
+
+const (
+	SwingIdle   SwingPhase = ""
+	SwingWindup SwingPhase = "windup"
+	SwingStrike SwingPhase = "strike"
+)
+
 type Swatter struct {
-	Position  Vec2    `json:"position"`
-	Radius    float64 `json:"radius"`
-	Attacking bool    `json:"attacking"`
+	Position  Vec2       `json:"position"`
+	Radius    float64    `json:"radius"`
+	Attacking bool       `json:"attacking"`
+	Phase     SwingPhase `json:"phase,omitempty"`
 }
 
 type Input struct {
@@ -90,22 +99,26 @@ type NeuralActivityProvider interface {
 }
 
 type Config struct {
-	StepSeconds      float64
-	FlySpeed         float64
-	FlyRadius        float64
-	SwatterRadius    float64
-	TurnRadians      float64
-	EscapeMultiplier float64
+	StepSeconds        float64
+	FlySpeed           float64
+	FlyRadius          float64
+	SwatterRadius      float64
+	TurnRadians        float64
+	EscapeMultiplier   float64
+	SwingWindupSeconds float64
+	SwingActiveSeconds float64
 }
 
 func DefaultConfig() Config {
 	return Config{
-		StepSeconds:      0.02,
-		FlySpeed:         0.28,
-		FlyRadius:        0.025,
-		SwatterRadius:    0.09,
-		TurnRadians:      math.Pi / 12,
-		EscapeMultiplier: 2.4,
+		StepSeconds:        0.02,
+		FlySpeed:           0.28,
+		FlyRadius:          0.025,
+		SwatterRadius:      0.09,
+		TurnRadians:        math.Pi / 12,
+		EscapeMultiplier:   2.4,
+		SwingWindupSeconds: 0.14,
+		SwingActiveSeconds: 0.08,
 	}
 }
 
@@ -114,6 +127,8 @@ type Game struct {
 	controller       Controller
 	state            Snapshot
 	attackHeld       bool
+	swingRemaining   float64
+	swingPhase       SwingPhase
 	arenaAspectRatio float64
 }
 
@@ -146,9 +161,12 @@ func (g *Game) Restore(snapshot Snapshot) error {
 	}
 
 	snapshot.Swatter.Attacking = false
+	snapshot.Swatter.Phase = SwingIdle
 	snapshot.NeuralActivity = nil
 	g.state = snapshot
 	g.attackHeld = false
+	g.swingPhase = SwingIdle
+	g.swingRemaining = 0
 	return nil
 }
 
@@ -161,13 +179,23 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	}
 	strike := input.Attacking && !g.attackHeld
 	g.attackHeld = input.Attacking
+	startedSwing := false
+	if strike && g.swingPhase == SwingIdle {
+		g.swingPhase = SwingWindup
+		g.swingRemaining = g.config.SwingWindupSeconds
+		startedSwing = true
+	}
+	if !startedSwing {
+		g.advanceSwing()
+	}
 	swatter := Swatter{
 		Position: Vec2{
 			X: clamp(input.SwatterPosition.X, 0, 1),
 			Y: clamp(input.SwatterPosition.Y, 0, 1),
 		},
 		Radius:    g.config.SwatterRadius,
-		Attacking: strike,
+		Attacking: g.swingPhase != SwingIdle,
+		Phase:     g.swingPhase,
 	}
 	if !g.state.Alive {
 		g.state.Episode++
@@ -180,6 +208,10 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	if collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio) {
 		g.state.Tick++
 		g.state.Alive = false
+		g.swingPhase = SwingIdle
+		g.swingRemaining = 0
+		g.state.Swatter.Attacking = false
+		g.state.Swatter.Phase = SwingIdle
 		return g.state, nil
 	}
 
@@ -206,6 +238,24 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	g.state.Alive = !collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio)
 
 	return g.state, nil
+}
+
+func (g *Game) advanceSwing() {
+	if g.swingPhase == SwingIdle {
+		return
+	}
+	g.swingRemaining -= g.config.StepSeconds
+	if g.swingRemaining > 0 {
+		return
+	}
+	switch g.swingPhase {
+	case SwingWindup:
+		g.swingPhase = SwingStrike
+		g.swingRemaining = g.config.SwingActiveSeconds
+	default:
+		g.swingPhase = SwingIdle
+		g.swingRemaining = 0
+	}
 }
 
 func (g *Game) apply(action Action) {
@@ -255,7 +305,7 @@ func (g *Game) resetFly() {
 }
 
 func collides(fly Fly, swatter Swatter, aspectRatio float64) bool {
-	if !swatter.Attacking {
+	if !swatter.Attacking || swatter.Phase == SwingWindup {
 		return false
 	}
 

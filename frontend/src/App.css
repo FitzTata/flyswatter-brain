@@ -153,6 +153,10 @@ h1 span {
   animation: impact-jolt var(--strike-duration) ease-out;
 }
 
+.game-canvas--windup {
+  animation: swing-windup var(--swing-windup) ease-in;
+}
+
 .canvas-placeholder {
   position: absolute;
   inset: 0;
@@ -423,6 +427,17 @@ h1 span {
   }
 }
 
+@keyframes swing-windup {
+  from {
+    transform: rotate(-1deg) scale(1.01);
+    filter: brightness(1.08);
+  }
+
+  to {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
 @media (max-width: 860px) {
   .app-shell {
     width: min(100% - 24px, 680px);
@@ -496,6 +511,7 @@ h1 span {
 @media (prefers-reduced-motion: reduce) {
   .canvas-placeholder::before,
   .game-canvas--striking,
+  .game-canvas--windup,
   .neural-graph__node--active circle {
     animation: none;
   }

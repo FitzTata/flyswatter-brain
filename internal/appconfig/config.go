@@ -62,6 +62,24 @@ func load(root string, getenv func(string) string) (Config, error) {
 	); err != nil {
 		return Config{}, err
 	}
+	swingWindupMS, err := positiveFloat(
+		getenv,
+		"FLYSWATTER_SWING_WINDUP_MS",
+		gameConfig.SwingWindupSeconds*1000,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	gameConfig.SwingWindupSeconds = swingWindupMS / 1000
+	swingActiveMS, err := positiveFloat(
+		getenv,
+		"FLYSWATTER_SWING_ACTIVE_MS",
+		gameConfig.SwingActiveSeconds*1000,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	gameConfig.SwingActiveSeconds = swingActiveMS / 1000
 
 	controllerMode := valueOr(getenv("FLYSWATTER_CONTROLLER"), "auto")
 	if controllerMode != "auto" && controllerMode != "random" && controllerMode != "malecns" {

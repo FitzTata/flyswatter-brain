@@ -69,10 +69,17 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 
 	// Arrange
 	config := DefaultConfig()
+	config.SwingWindupSeconds = config.StepSeconds
+	config.SwingActiveSeconds = config.StepSeconds
 	instance := New(config, fixedController{action: ActionStraight})
 	hitPosition := Vec2{X: 0.5 + config.FlySpeed*config.StepSeconds, Y: 0.5}
 
 	// Act
+	windup, err := instance.Step(context.Background(), Input{
+		SwatterPosition: hitPosition,
+		Attacking:       true,
+	})
+	require.NoError(t, err)
 	hit, err := instance.Step(context.Background(), Input{
 		SwatterPosition: hitPosition,
 		Attacking:       true,
@@ -89,6 +96,8 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
+	assert.True(t, windup.Alive)
+	assert.Equal(t, SwingWindup, windup.Swatter.Phase)
 	assert.False(t, hit.Alive)
 	assert.Equal(t, uint64(1), hit.Episode)
 	assert.True(t, held.Alive)
@@ -98,6 +107,26 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 	assert.True(t, next.Alive)
 	assert.Equal(t, uint64(2), next.Episode)
 	assert.Equal(t, int64(40), next.SurvivalMS)
+}
+
+func TestSwingWindupIsNotLethal(t *testing.T) {
+	t.Parallel()
+
+	config := DefaultConfig()
+	config.SwingWindupSeconds = 0.1
+	config.SwingActiveSeconds = 0.02
+	instance := New(config, fixedController{action: ActionStraight})
+	fly := instance.Snapshot().Fly.Position
+
+	windup, err := instance.Step(context.Background(), Input{
+		SwatterPosition: fly,
+		Attacking:       true,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, windup.Alive)
+	assert.True(t, windup.Swatter.Attacking)
+	assert.Equal(t, SwingWindup, windup.Swatter.Phase)
 }
 
 func TestSwatterHitboxMatchesRenderedEllipse(t *testing.T) {

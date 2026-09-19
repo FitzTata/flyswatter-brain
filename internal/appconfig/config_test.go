@@ -19,6 +19,8 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, "auto", config.ControllerMode)
 	assert.Equal(t, 20*time.Millisecond, time.Duration(config.Game.StepSeconds*float64(time.Second)))
 	assert.Equal(t, 0.28, config.Game.FlySpeed)
+	assert.Equal(t, 0.14, config.Game.SwingWindupSeconds)
+	assert.Equal(t, 0.08, config.Game.SwingActiveSeconds)
 	assert.Equal(t, 2.0, config.NeuralStepMS)
 	assert.Equal(t, 2*time.Minute, config.NeuralStartupTimeout)
 }

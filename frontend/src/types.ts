@@ -16,6 +16,7 @@ export interface Swatter {
   position: Vec2
   radius: number
   attacking: boolean
+  phase?: 'windup' | 'strike'
 }
 
 export interface Snapshot {
@@ -124,7 +125,8 @@ function isSwatter(value: unknown): value is Swatter {
     isRecord(value) &&
     isVec2(value.position) &&
     typeof value.radius === 'number' &&
-    typeof value.attacking === 'boolean'
+    typeof value.attacking === 'boolean' &&
+    (value.phase === undefined || value.phase === 'windup' || value.phase === 'strike')
   )
 }
 
