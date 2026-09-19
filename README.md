@@ -51,6 +51,36 @@ MaleCNS neural worker
   └─ optional dopamine-gated plasticity
 ```
 
+## MVP backend
+
+The current backend owns deterministic game state and exposes:
+
+- `GET /healthz` for health checks
+- `GET /ws` for stateful game sessions
+
+Run it locally:
+
+```sh
+go run ./cmd/server
+```
+
+The server listens on `127.0.0.1:8080` by default. Set `FLYSWATTER_ADDR` to override it.
+
+Run the backend checks:
+
+```sh
+go test ./...
+go vet ./...
+```
+
+WebSocket sessions start with a snapshot. The client then sends input messages:
+
+```json
+{"type":"input","input":{"swatter_position":{"x":0.4,"y":0.6},"attacking":true}}
+```
+
+Each valid input advances the authoritative game by one fixed step and returns the next snapshot.
+
 ## Status
 
-The project is currently at the MVP design stage. The implementation plan is available in [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md).
+The random-controller backend is implemented. The browser client and MaleCNS worker are not connected yet. The implementation plan is available in [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md).

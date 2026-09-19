@@ -1,0 +1,224 @@
+package game
+
+import (
+	"context"
+	"errors"
+	"math"
+)
+
+type Action string
+
+const (
+	ActionTurnLeft  Action = "turn_left"
+	ActionTurnRight Action = "turn_right"
+	ActionStraight  Action = "straight"
+	ActionEscape    Action = "escape"
+)
+
+var (
+	ErrInvalidAction = errors.New("invalid controller action")
+	ErrInvalidInput  = errors.New("invalid game input")
+)
+
+type Vec2 struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type Fly struct {
+	Position Vec2    `json:"position"`
+	Heading  float64 `json:"heading"`
+	Speed    float64 `json:"speed"`
+	Radius   float64 `json:"radius"`
+}
+
+type Swatter struct {
+	Position  Vec2    `json:"position"`
+	Radius    float64 `json:"radius"`
+	Attacking bool    `json:"attacking"`
+}
+
+type Input struct {
+	SwatterPosition Vec2 `json:"swatter_position"`
+	Attacking       bool `json:"attacking"`
+}
+
+type Observation struct {
+	Tick    uint64
+	Fly     Fly
+	Swatter Swatter
+}
+
+type Snapshot struct {
+	Tick       uint64  `json:"tick"`
+	Episode    uint64  `json:"episode"`
+	Alive      bool    `json:"alive"`
+	SurvivalMS int64   `json:"survival_ms"`
+	LastAction Action  `json:"last_action"`
+	Fly        Fly     `json:"fly"`
+	Swatter    Swatter `json:"swatter"`
+}
+
+type Controller interface {
+	NextAction(context.Context, Observation) (Action, error)
+}
+
+type Config struct {
+	StepSeconds      float64
+	FlySpeed         float64
+	FlyRadius        float64
+	SwatterRadius    float64
+	TurnRadians      float64
+	EscapeMultiplier float64
+}
+
+func DefaultConfig() Config {
+	return Config{
+		StepSeconds:      0.05,
+		FlySpeed:         0.18,
+		FlyRadius:        0.025,
+		SwatterRadius:    0.09,
+		TurnRadians:      math.Pi / 12,
+		EscapeMultiplier: 2.4,
+	}
+}
+
+type Game struct {
+	config     Config
+	controller Controller
+	state      Snapshot
+}
+
+func New(config Config, controller Controller) *Game {
+	game := &Game{
+		config:     config,
+		controller: controller,
+		state: Snapshot{
+			Episode: 1,
+			Alive:   true,
+		},
+	}
+	game.resetFly()
+	return game
+}
+
+func (g *Game) Snapshot() Snapshot {
+	return g.state
+}
+
+func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
+	if !validPosition(input.SwatterPosition) {
+		return Snapshot{}, ErrInvalidInput
+	}
+	if !g.state.Alive {
+		g.state.Episode++
+		g.state.Alive = true
+		g.state.SurvivalMS = 0
+		g.resetFly()
+	}
+
+	g.state.Swatter = Swatter{
+		Position: Vec2{
+			X: clamp(input.SwatterPosition.X, 0, 1),
+			Y: clamp(input.SwatterPosition.Y, 0, 1),
+		},
+		Radius:    g.config.SwatterRadius,
+		Attacking: input.Attacking,
+	}
+
+	action, err := g.controller.NextAction(ctx, Observation{
+		Tick:    g.state.Tick,
+		Fly:     g.state.Fly,
+		Swatter: g.state.Swatter,
+	})
+	if err != nil {
+		return Snapshot{}, err
+	}
+	if !validAction(action) {
+		return Snapshot{}, ErrInvalidAction
+	}
+
+	g.apply(action)
+	g.state.Tick++
+	g.state.SurvivalMS += int64(math.Round(g.config.StepSeconds * 1000))
+	g.state.LastAction = action
+	g.state.Alive = !collides(g.state.Fly, g.state.Swatter)
+
+	return g.state, nil
+}
+
+func (g *Game) apply(action Action) {
+	switch action {
+	case ActionTurnLeft:
+		g.state.Fly.Heading -= g.config.TurnRadians
+	case ActionTurnRight:
+		g.state.Fly.Heading += g.config.TurnRadians
+	}
+
+	speed := g.config.FlySpeed
+	if action == ActionEscape {
+		speed *= g.config.EscapeMultiplier
+	}
+	g.state.Fly.Speed = speed
+
+	distance := speed * g.config.StepSeconds
+	g.state.Fly.Position.X += math.Cos(g.state.Fly.Heading) * distance
+	g.state.Fly.Position.Y += math.Sin(g.state.Fly.Heading) * distance
+	g.reflectAtBounds()
+}
+
+func (g *Game) reflectAtBounds() {
+	radius := g.state.Fly.Radius
+	if g.state.Fly.Position.X < radius || g.state.Fly.Position.X > 1-radius {
+		g.state.Fly.Position.X = clamp(g.state.Fly.Position.X, radius, 1-radius)
+		g.state.Fly.Heading = math.Pi - g.state.Fly.Heading
+	}
+	if g.state.Fly.Position.Y < radius || g.state.Fly.Position.Y > 1-radius {
+		g.state.Fly.Position.Y = clamp(g.state.Fly.Position.Y, radius, 1-radius)
+		g.state.Fly.Heading = -g.state.Fly.Heading
+	}
+}
+
+func (g *Game) resetFly() {
+	g.state.Fly = Fly{
+		Position: Vec2{X: 0.5, Y: 0.5},
+		Heading:  0,
+		Speed:    g.config.FlySpeed,
+		Radius:   g.config.FlyRadius,
+	}
+	g.state.Swatter = Swatter{
+		Position: Vec2{X: 0.5, Y: 0.8},
+		Radius:   g.config.SwatterRadius,
+	}
+	g.state.LastAction = ActionStraight
+}
+
+func collides(fly Fly, swatter Swatter) bool {
+	if !swatter.Attacking {
+		return false
+	}
+	return math.Hypot(
+		fly.Position.X-swatter.Position.X,
+		fly.Position.Y-swatter.Position.Y,
+	) <= fly.Radius+swatter.Radius
+}
+
+func validAction(action Action) bool {
+	switch action {
+	case ActionTurnLeft, ActionTurnRight, ActionStraight, ActionEscape:
+		return true
+	default:
+		return false
+	}
+}
+
+func validPosition(position Vec2) bool {
+	return !math.IsNaN(position.X) &&
+		!math.IsNaN(position.Y) &&
+		!math.IsInf(position.X, 0) &&
+		!math.IsInf(position.Y, 0)
+}
+
+func clamp(value, minValue, maxValue float64) float64 {
+	return math.Max(minValue, math.Min(maxValue, value))
+}
