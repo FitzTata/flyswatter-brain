@@ -3,6 +3,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { GameCanvas } from './GameCanvas'
 
 describe('GameCanvas', () => {
+  it('renders the strike impact state', () => {
+    render(
+      <GameCanvas
+        snapshot={null}
+        input={{ swatter_position: { x: 0.5, y: 0.5 }, attacking: true }}
+        onInputChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText(/click to strike/i)).toHaveClass('game-canvas--striking')
+  })
+
   it('emits one short strike per pointer press', () => {
     vi.useFakeTimers()
     const onInputChange = vi.fn()

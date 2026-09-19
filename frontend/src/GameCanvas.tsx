@@ -84,7 +84,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
   return (
     <canvas
       ref={canvasRef}
-      className="game-canvas"
+      className={`game-canvas ${input.attacking ? 'game-canvas--striking' : ''}`}
       aria-label="Fly arena. Move the pointer to aim and click to strike."
       onPointerMove={updatePosition}
       onPointerDown={strike}
@@ -168,32 +168,99 @@ function drawSwatter(
 ) {
   const x = input.swatter_position.x * width
   const y = input.swatter_position.y * height
-  const size = radius * Math.min(width, height) * (input.attacking ? 0.88 : 1)
+  const size = radius * Math.min(width, height)
+
+  if (input.attacking) {
+    drawImpact(context, x, y, size)
+  }
 
   context.save()
+  context.translate(x, y)
+  context.rotate(-Math.PI / 4)
   context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
-  context.lineWidth = input.attacking ? 4 : 3
+  context.fillStyle = 'rgba(255, 112, 67, 0.08)'
+  context.lineWidth = input.attacking ? 4.5 : 3.5
   context.globalAlpha = input.attacking ? 1 : 0.78
+  context.shadowColor = input.attacking ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
+  context.shadowBlur = input.attacking ? 18 : 7
+  context.lineCap = 'round'
 
   context.beginPath()
-  context.moveTo(x + size * 0.62, y + size * 0.62)
-  context.lineTo(x + size * 1.8, y + size * 1.8)
+  context.moveTo(0, size * 0.82)
+  context.lineTo(0, size * 2.5)
   context.stroke()
 
+  context.shadowBlur = 0
+  context.strokeStyle = '#3e2118'
+  context.lineWidth = size * 0.24
   context.beginPath()
-  context.arc(x, y, size, 0, Math.PI * 2)
+  context.moveTo(0, size * 1.62)
+  context.lineTo(0, size * 2.52)
   context.stroke()
 
-  context.lineWidth = 1
-  for (let offset = -0.55; offset <= 0.55; offset += 0.275) {
+  context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
+  context.lineWidth = size * 0.11
+  context.beginPath()
+  context.moveTo(0, size * 1.6)
+  context.lineTo(0, size * 2.48)
+  context.stroke()
+
+  context.strokeStyle = input.attacking ? '#ff512f' : '#ff8a4c'
+  context.fillStyle = input.attacking ? 'rgba(255, 81, 47, 0.18)' : 'rgba(255, 112, 67, 0.07)'
+  context.lineWidth = input.attacking ? 4.5 : 3.5
+  context.shadowColor = input.attacking ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
+  context.shadowBlur = input.attacking ? 18 : 7
+  context.beginPath()
+  context.ellipse(0, 0, size * 0.78, size, 0, 0, Math.PI * 2)
+  context.fill()
+  context.stroke()
+
+  context.shadowBlur = 0
+  context.lineWidth = input.attacking ? 1.6 : 1
+  for (let offset = -0.54; offset <= 0.54; offset += 0.27) {
     context.beginPath()
-    context.moveTo(x - size * 0.72, y + size * offset)
-    context.lineTo(x + size * 0.72, y + size * offset)
+    context.moveTo(-size * 0.62, size * offset)
+    context.lineTo(size * 0.62, size * offset)
     context.stroke()
     context.beginPath()
-    context.moveTo(x + size * offset, y - size * 0.72)
-    context.lineTo(x + size * offset, y + size * 0.72)
+    context.moveTo(size * offset, -size * 0.82)
+    context.lineTo(size * offset, size * 0.82)
     context.stroke()
+  }
+  context.restore()
+}
+
+function drawImpact(context: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  context.save()
+  context.strokeStyle = '#c7ff54'
+  context.fillStyle = '#c7ff54'
+  context.lineWidth = 2
+  context.globalAlpha = 0.82
+  context.shadowColor = '#c7ff54'
+  context.shadowBlur = 12
+
+  for (const scale of [1.12, 1.38]) {
+    context.beginPath()
+    context.arc(x, y, size * scale, 0, Math.PI * 2)
+    context.stroke()
+  }
+
+  for (let index = 0; index < 10; index++) {
+    const angle = (Math.PI * 2 * index) / 10
+    context.beginPath()
+    context.moveTo(x + Math.cos(angle) * size * 1.48, y + Math.sin(angle) * size * 1.48)
+    context.lineTo(x + Math.cos(angle) * size * 1.82, y + Math.sin(angle) * size * 1.82)
+    context.stroke()
+
+    context.beginPath()
+    context.arc(
+      x + Math.cos(angle + 0.2) * size * 1.64,
+      y + Math.sin(angle + 0.2) * size * 1.64,
+      1.8,
+      0,
+      Math.PI * 2,
+    )
+    context.fill()
   }
   context.restore()
 }

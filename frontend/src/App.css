@@ -149,6 +149,10 @@ h1 span {
   touch-action: none;
 }
 
+.game-canvas--striking {
+  animation: impact-jolt 75ms ease-out;
+}
+
 .canvas-placeholder {
   position: absolute;
   inset: 0;
@@ -408,6 +412,17 @@ h1 span {
   }
 }
 
+@keyframes impact-jolt {
+  35% {
+    transform: translate(2px, 1px) scale(0.997);
+    filter: brightness(1.25);
+  }
+
+  70% {
+    transform: translate(-1px, -1px);
+  }
+}
+
 @media (max-width: 860px) {
   .app-shell {
     width: min(100% - 24px, 680px);
@@ -480,6 +495,7 @@ h1 span {
 
 @media (prefers-reduced-motion: reduce) {
   .canvas-placeholder::before,
+  .game-canvas--striking,
   .neural-graph__node--active circle {
     animation: none;
   }
