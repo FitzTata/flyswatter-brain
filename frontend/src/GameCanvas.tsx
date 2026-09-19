@@ -12,6 +12,7 @@ const strikeDurationMS = 75
 export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const positionRef = useRef(input.swatter_position)
+  const aspectRatioRef = useRef(input.arena_aspect_ratio ?? 2)
   const strikeActiveRef = useRef(false)
   const strikeLockedRef = useRef(false)
   const strikeTimerRef = useRef<number | undefined>(undefined)
@@ -44,9 +45,14 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
   )
 
   const updatePosition = (event: PointerEvent<HTMLCanvasElement>) => {
-    const position = pointerPosition(event)
+    const { position, aspectRatio } = pointerState(event)
     positionRef.current = position
-    onInputChange({ swatter_position: position, attacking: strikeActiveRef.current })
+    aspectRatioRef.current = aspectRatio
+    onInputChange({
+      swatter_position: position,
+      attacking: strikeActiveRef.current,
+      arena_aspect_ratio: aspectRatio,
+    })
   }
 
   const strike = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -54,16 +60,21 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
       return
     }
 
-    const position = pointerPosition(event)
+    const { position, aspectRatio } = pointerState(event)
     positionRef.current = position
+    aspectRatioRef.current = aspectRatio
     strikeLockedRef.current = true
     strikeActiveRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
-    onInputChange({ swatter_position: position, attacking: true })
+    onInputChange({ swatter_position: position, attacking: true, arena_aspect_ratio: aspectRatio })
 
     strikeTimerRef.current = window.setTimeout(() => {
       strikeActiveRef.current = false
-      onInputChange({ swatter_position: positionRef.current, attacking: false })
+      onInputChange({
+        swatter_position: positionRef.current,
+        attacking: false,
+        arena_aspect_ratio: aspectRatioRef.current,
+      })
     }, strikeDurationMS)
   }
 
@@ -78,7 +89,11 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     window.clearTimeout(strikeTimerRef.current)
     strikeActiveRef.current = false
     strikeLockedRef.current = false
-    onInputChange({ swatter_position: positionRef.current, attacking: false })
+    onInputChange({
+      swatter_position: positionRef.current,
+      attacking: false,
+      arena_aspect_ratio: aspectRatioRef.current,
+    })
   }
 
   return (
@@ -265,11 +280,14 @@ function drawImpact(context: CanvasRenderingContext2D, x: number, y: number, siz
   context.restore()
 }
 
-function pointerPosition(event: PointerEvent<HTMLCanvasElement>): Vec2 {
+function pointerState(event: PointerEvent<HTMLCanvasElement>): { position: Vec2; aspectRatio: number } {
   const bounds = event.currentTarget.getBoundingClientRect()
   return {
-    x: clamp((event.clientX - bounds.left) / bounds.width),
-    y: clamp((event.clientY - bounds.top) / bounds.height),
+    position: {
+      x: clamp((event.clientX - bounds.left) / bounds.width),
+      y: clamp((event.clientY - bounds.top) / bounds.height),
+    },
+    aspectRatio: bounds.width / bounds.height,
   }
 }
 

@@ -35,10 +35,12 @@ describe('GameCanvas', () => {
     expect(onInputChange).toHaveBeenNthCalledWith(1, {
       swatter_position: { x: 0.5, y: 0.5 },
       attacking: true,
+      arena_aspect_ratio: 800 / 520,
     })
     expect(onInputChange).toHaveBeenNthCalledWith(2, {
       swatter_position: { x: 0.5, y: 0.5 },
       attacking: false,
+      arena_aspect_ratio: 800 / 520,
     })
   })
 })

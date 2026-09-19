@@ -8,6 +8,7 @@ import { useGameSocket } from './useGameSocket'
 const initialInput: GameInput = {
   swatter_position: { x: 0.75, y: 0.25 },
   attacking: false,
+  arena_aspect_ratio: 2,
 }
 
 function App() {

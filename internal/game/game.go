@@ -39,8 +39,9 @@ type Swatter struct {
 }
 
 type Input struct {
-	SwatterPosition Vec2 `json:"swatter_position"`
-	Attacking       bool `json:"attacking"`
+	SwatterPosition  Vec2    `json:"swatter_position"`
+	Attacking        bool    `json:"attacking"`
+	ArenaAspectRatio float64 `json:"arena_aspect_ratio,omitempty"`
 }
 
 type Observation struct {
@@ -108,16 +109,18 @@ func DefaultConfig() Config {
 }
 
 type Game struct {
-	config     Config
-	controller Controller
-	state      Snapshot
-	attackHeld bool
+	config           Config
+	controller       Controller
+	state            Snapshot
+	attackHeld       bool
+	arenaAspectRatio float64
 }
 
 func New(config Config, controller Controller) *Game {
 	game := &Game{
-		config:     config,
-		controller: controller,
+		config:           config,
+		controller:       controller,
+		arenaAspectRatio: 2,
 		state: Snapshot{
 			Episode: 1,
 			Alive:   true,
@@ -132,8 +135,11 @@ func (g *Game) Snapshot() Snapshot {
 }
 
 func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
-	if !validPosition(input.SwatterPosition) {
+	if !validPosition(input.SwatterPosition) || !validAspectRatio(input.ArenaAspectRatio) {
 		return Snapshot{}, ErrInvalidInput
+	}
+	if input.ArenaAspectRatio > 0 {
+		g.arenaAspectRatio = input.ArenaAspectRatio
 	}
 	strike := input.Attacking && !g.attackHeld
 	g.attackHeld = input.Attacking
@@ -153,7 +159,7 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	}
 
 	g.state.Swatter = swatter
-	if collides(g.state.Fly, g.state.Swatter) {
+	if collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio) {
 		g.state.Tick++
 		g.state.Alive = false
 		return g.state, nil
@@ -179,7 +185,7 @@ func (g *Game) Step(ctx context.Context, input Input) (Snapshot, error) {
 	g.state.Tick++
 	g.state.SurvivalMS += int64(math.Round(g.config.StepSeconds * 1000))
 	g.state.LastAction = action
-	g.state.Alive = !collides(g.state.Fly, g.state.Swatter)
+	g.state.Alive = !collides(g.state.Fly, g.state.Swatter, g.arenaAspectRatio)
 
 	return g.state, nil
 }
@@ -230,14 +236,20 @@ func (g *Game) resetFly() {
 	g.state.LastAction = ActionStraight
 }
 
-func collides(fly Fly, swatter Swatter) bool {
+func collides(fly Fly, swatter Swatter, aspectRatio float64) bool {
 	if !swatter.Attacking {
 		return false
 	}
-	return math.Hypot(
-		fly.Position.X-swatter.Position.X,
-		fly.Position.Y-swatter.Position.Y,
-	) <= fly.Radius+swatter.Radius
+
+	dx := (fly.Position.X - swatter.Position.X) * aspectRatio
+	dy := fly.Position.Y - swatter.Position.Y
+	cos, sin := math.Cos(-math.Pi/4), math.Sin(-math.Pi/4)
+	localX := dx*cos + dy*sin
+	localY := -dx*sin + dy*cos
+	radiusX := swatter.Radius*0.78 + fly.Radius
+	radiusY := swatter.Radius + fly.Radius
+
+	return math.Pow(localX/radiusX, 2)+math.Pow(localY/radiusY, 2) <= 1
 }
 
 func validAction(action Action) bool {
@@ -254,6 +266,10 @@ func validPosition(position Vec2) bool {
 		!math.IsNaN(position.Y) &&
 		!math.IsInf(position.X, 0) &&
 		!math.IsInf(position.Y, 0)
+}
+
+func validAspectRatio(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func clamp(value, minValue, maxValue float64) float64 {

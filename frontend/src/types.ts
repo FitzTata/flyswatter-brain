@@ -51,6 +51,7 @@ export interface NeuralNode {
 export interface GameInput {
   swatter_position: Vec2
   attacking: boolean
+  arena_aspect_ratio?: number
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'

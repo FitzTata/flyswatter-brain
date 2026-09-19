@@ -76,7 +76,7 @@ go vet ./...
 WebSocket sessions start with a snapshot. The client then sends input messages:
 
 ```json
-{"type":"input","input":{"swatter_position":{"x":0.4,"y":0.6},"attacking":true}}
+{"type":"input","input":{"swatter_position":{"x":0.4,"y":0.6},"attacking":true,"arena_aspect_ratio":2.0}}
 ```
 
 Each valid input advances the authoritative game by one fixed step and returns the next snapshot.

@@ -100,6 +100,36 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 	assert.Equal(t, int64(40), next.SurvivalMS)
 }
 
+func TestSwatterHitboxMatchesRenderedEllipse(t *testing.T) {
+	t.Parallel()
+
+	const aspectRatio = 2.0
+	swatter := Swatter{
+		Position:  Vec2{X: 0.5, Y: 0.5},
+		Radius:    0.09,
+		Attacking: true,
+	}
+	tests := []struct {
+		name     string
+		position Vec2
+		want     bool
+	}{
+		{name: "center", position: swatter.Position, want: true},
+		{name: "inside long axis", position: ellipsePoint(swatter.Position, 0, 0.11, aspectRatio), want: true},
+		{name: "outside short axis", position: ellipsePoint(swatter.Position, 0.1, 0, aspectRatio), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fly := Fly{Position: tt.position, Radius: 0.025}
+
+			assert.Equal(t, tt.want, collides(fly, swatter, aspectRatio))
+		})
+	}
+}
+
 func TestGameRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
@@ -152,4 +182,11 @@ func TestGameIncludesNeuralActivity(t *testing.T) {
 	require.NotNil(t, snapshot.NeuralActivity)
 	assert.Equal(t, "MaleCNS v1.0", snapshot.NeuralActivity.Model)
 	assert.Equal(t, 14.0, snapshot.NeuralActivity.RightHz)
+}
+
+func ellipsePoint(center Vec2, localX, localY, aspectRatio float64) Vec2 {
+	const angle = -math.Pi / 4
+	dx := localX*math.Cos(angle) - localY*math.Sin(angle)
+	dy := localX*math.Sin(angle) + localY*math.Cos(angle)
+	return Vec2{X: center.X + dx/aspectRatio, Y: center.Y + dy}
 }
