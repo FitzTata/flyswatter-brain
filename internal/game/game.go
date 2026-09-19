@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"math"
+	"math/rand"
+	"time"
 )
 
 type Action string
@@ -125,6 +127,7 @@ func DefaultConfig() Config {
 type Game struct {
 	config           Config
 	controller       Controller
+	random           *rand.Rand
 	state            Snapshot
 	attackHeld       bool
 	swingRemaining   float64
@@ -133,9 +136,14 @@ type Game struct {
 }
 
 func New(config Config, controller Controller) *Game {
+	return NewWithRand(config, controller, rand.New(rand.NewSource(time.Now().UnixNano())))
+}
+
+func NewWithRand(config Config, controller Controller, random *rand.Rand) *Game {
 	game := &Game{
 		config:           config,
 		controller:       controller,
+		random:           random,
 		arenaAspectRatio: 2,
 		state: Snapshot{
 			Episode: 1,
@@ -291,11 +299,15 @@ func (g *Game) reflectAtBounds() {
 }
 
 func (g *Game) resetFly() {
+	margin := g.config.FlyRadius + 0.05
 	g.state.Fly = Fly{
-		Position: Vec2{X: 0.5, Y: 0.5},
-		Heading:  0,
-		Speed:    g.config.FlySpeed,
-		Radius:   g.config.FlyRadius,
+		Position: Vec2{
+			X: margin + g.random.Float64()*(1-2*margin),
+			Y: margin + g.random.Float64()*(1-2*margin),
+		},
+		Heading: g.random.Float64() * 2 * math.Pi,
+		Speed:   g.config.FlySpeed,
+		Radius:  g.config.FlyRadius,
 	}
 	g.state.Swatter = Swatter{
 		Position: Vec2{X: 0.5, Y: 0.8},

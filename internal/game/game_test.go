@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,39 +28,45 @@ func (c telemetryController) LastNeuralActivity() *NeuralActivity {
 	return &c.activity
 }
 
+func newTestGame(config Config, controller Controller) *Game {
+	return NewWithRand(config, controller, rand.New(rand.NewSource(1)))
+}
+
 func TestGameStep(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		action        Action
-		wantHeading   float64
-		wantSpeed     float64
-		wantMinTravel float64
+		name            string
+		action          Action
+		wantHeadingDelta float64
+		wantSpeed       float64
+		wantMinTravel   float64
 	}{
-		{name: "straight", action: ActionStraight, wantHeading: 0, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "left", action: ActionTurnLeft, wantHeading: -math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "right", action: ActionTurnRight, wantHeading: math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "escape", action: ActionEscape, wantHeading: 0, wantSpeed: 0.672, wantMinTravel: 0.013},
+		{name: "straight", action: ActionStraight, wantHeadingDelta: 0, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "left", action: ActionTurnLeft, wantHeadingDelta: -math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "right", action: ActionTurnRight, wantHeadingDelta: math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
+		{name: "escape", action: ActionEscape, wantHeadingDelta: 0, wantSpeed: 0.672, wantMinTravel: 0.013},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Arrange
-			instance := New(DefaultConfig(), fixedController{action: tt.action})
+			instance := newTestGame(DefaultConfig(), fixedController{action: tt.action})
+			start := instance.Snapshot().Fly
 
-			// Act
 			snapshot, err := instance.Step(context.Background(), Input{})
 
-			// Assert
 			require.NoError(t, err)
 			assert.Equal(t, uint64(1), snapshot.Tick)
 			assert.Equal(t, tt.action, snapshot.LastAction)
-			assert.InDelta(t, tt.wantHeading, snapshot.Fly.Heading, 0.0001)
+			assert.InDelta(t, start.Heading+tt.wantHeadingDelta, snapshot.Fly.Heading, 0.0001)
 			assert.InDelta(t, tt.wantSpeed, snapshot.Fly.Speed, 0.0001)
-			assert.Greater(t, math.Hypot(snapshot.Fly.Position.X-0.5, snapshot.Fly.Position.Y-0.5), tt.wantMinTravel)
+			assert.Greater(
+				t,
+				math.Hypot(snapshot.Fly.Position.X-start.Position.X, snapshot.Fly.Position.Y-start.Position.Y),
+				tt.wantMinTravel,
+			)
 		})
 	}
 }
@@ -67,26 +74,23 @@ func TestGameStep(t *testing.T) {
 func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
 	config := DefaultConfig()
 	config.SwingWindupSeconds = config.StepSeconds
 	config.SwingActiveSeconds = config.StepSeconds
-	instance := New(config, fixedController{action: ActionStraight})
-	hitPosition := Vec2{X: 0.5 + config.FlySpeed*config.StepSeconds, Y: 0.5}
+	instance := newTestGame(config, fixedController{action: ActionStraight})
 
-	// Act
 	windup, err := instance.Step(context.Background(), Input{
-		SwatterPosition: hitPosition,
+		SwatterPosition: instance.Snapshot().Fly.Position,
 		Attacking:       true,
 	})
 	require.NoError(t, err)
 	hit, err := instance.Step(context.Background(), Input{
-		SwatterPosition: hitPosition,
+		SwatterPosition: instance.Snapshot().Fly.Position,
 		Attacking:       true,
 	})
 	require.NoError(t, err)
 	held, err := instance.Step(context.Background(), Input{
-		SwatterPosition: hitPosition,
+		SwatterPosition: instance.Snapshot().Fly.Position,
 		Attacking:       true,
 	})
 	require.NoError(t, err)
@@ -94,7 +98,6 @@ func TestGameCollisionStartsNewEpisodeOnNextStep(t *testing.T) {
 		SwatterPosition: Vec2{},
 	})
 
-	// Assert
 	require.NoError(t, err)
 	assert.True(t, windup.Alive)
 	assert.Equal(t, SwingWindup, windup.Swatter.Phase)
@@ -115,7 +118,7 @@ func TestSwingWindupIsNotLethal(t *testing.T) {
 	config := DefaultConfig()
 	config.SwingWindupSeconds = 0.1
 	config.SwingActiveSeconds = 0.02
-	instance := New(config, fixedController{action: ActionStraight})
+	instance := newTestGame(config, fixedController{action: ActionStraight})
 	fly := instance.Snapshot().Fly.Position
 
 	windup, err := instance.Step(context.Background(), Input{
@@ -127,6 +130,18 @@ func TestSwingWindupIsNotLethal(t *testing.T) {
 	assert.True(t, windup.Alive)
 	assert.True(t, windup.Swatter.Attacking)
 	assert.Equal(t, SwingWindup, windup.Swatter.Phase)
+}
+
+func TestFlySpawnsAtRandomPositions(t *testing.T) {
+	t.Parallel()
+
+	first := newTestGame(DefaultConfig(), fixedController{action: ActionStraight}).Snapshot().Fly
+	second := NewWithRand(DefaultConfig(), fixedController{action: ActionStraight}, rand.New(rand.NewSource(2))).Snapshot().Fly
+
+	assert.NotEqual(t, first.Position, second.Position)
+	assert.NotEqual(t, first.Heading, second.Heading)
+	assert.GreaterOrEqual(t, first.Position.X, DefaultConfig().FlyRadius)
+	assert.LessOrEqual(t, first.Position.X, 1-DefaultConfig().FlyRadius)
 }
 
 func TestSwatterHitboxMatchesRenderedEllipse(t *testing.T) {
@@ -162,22 +177,19 @@ func TestSwatterHitboxMatchesRenderedEllipse(t *testing.T) {
 func TestGameRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
-	instance := New(DefaultConfig(), fixedController{action: ActionStraight})
+	instance := newTestGame(DefaultConfig(), fixedController{action: ActionStraight})
 
-	// Act
 	_, err := instance.Step(context.Background(), Input{
 		SwatterPosition: Vec2{X: math.NaN()},
 	})
 
-	// Assert
 	require.ErrorIs(t, err, ErrInvalidInput)
 }
 
 func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
 	t.Parallel()
 
-	instance := New(DefaultConfig(), fixedController{action: ActionStraight})
+	instance := newTestGame(DefaultConfig(), fixedController{action: ActionStraight})
 	checkpoint := Snapshot{
 		Tick:       42,
 		Episode:    3,
@@ -205,7 +217,7 @@ func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
 func TestGameRejectsInvalidCheckpoint(t *testing.T) {
 	t.Parallel()
 
-	instance := New(DefaultConfig(), fixedController{action: ActionStraight})
+	instance := newTestGame(DefaultConfig(), fixedController{action: ActionStraight})
 
 	err := instance.Restore(Snapshot{})
 
@@ -215,11 +227,9 @@ func TestGameRejectsInvalidCheckpoint(t *testing.T) {
 func TestRandomControllerIsDeterministic(t *testing.T) {
 	t.Parallel()
 
-	// Arrange
 	first := NewRandomController(42)
 	second := NewRandomController(42)
 
-	// Act
 	var firstActions, secondActions []Action
 	for range 20 {
 		action, err := first.NextAction(context.Background(), Observation{})
@@ -231,14 +241,13 @@ func TestRandomControllerIsDeterministic(t *testing.T) {
 		secondActions = append(secondActions, action)
 	}
 
-	// Assert
 	assert.Equal(t, firstActions, secondActions)
 }
 
 func TestGameIncludesNeuralActivity(t *testing.T) {
 	t.Parallel()
 
-	instance := New(DefaultConfig(), telemetryController{
+	instance := newTestGame(DefaultConfig(), telemetryController{
 		fixedController: fixedController{action: ActionStraight},
 		activity:        NeuralActivity{Model: "MaleCNS v1.0", RightHz: 14},
 	})
