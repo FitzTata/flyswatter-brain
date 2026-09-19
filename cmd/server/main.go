@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/FitzTata/flyswatter-brain/internal/api"
+	"github.com/FitzTata/flyswatter-brain/internal/appconfig"
 	"github.com/FitzTata/flyswatter-brain/internal/game"
 	"github.com/FitzTata/flyswatter-brain/internal/neural"
 	"github.com/FitzTata/flyswatter-brain/internal/persistence"
@@ -23,7 +22,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	neuralController := connectNeuralController(ctx, logger)
+	config, err := appconfig.Load()
+	if err != nil {
+		logger.Error("load config", "error", err)
+		os.Exit(1)
+	}
+	neuralController := connectNeuralController(ctx, logger, config)
 	if neuralController != nil {
 		defer func() {
 			if err := neuralController.Close(); err != nil {
@@ -33,13 +37,13 @@ func main() {
 	}
 	server := api.NewServer(logger, func(seed int64) *game.Game {
 		if neuralController != nil {
-			return game.New(game.DefaultConfig(), neuralController)
+			return game.New(config.Game, neuralController)
 		}
-		return game.New(game.DefaultConfig(), game.NewRandomController(seed))
-	}).WithStore(persistence.NewFileStore(envOr("FLYSWATTER_RUNS_DIR", "runs")))
+		return game.New(config.Game, game.NewRandomController(seed))
+	}).WithStore(persistence.NewFileStore(config.RunsDir))
 
 	httpServer := &http.Server{
-		Addr:              address(),
+		Addr:              config.Address,
 		Handler:           server.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -60,52 +64,28 @@ func main() {
 	}
 }
 
-func connectNeuralController(ctx context.Context, logger *slog.Logger) *neural.Controller {
-	mode := os.Getenv("FLYSWATTER_CONTROLLER")
-	if mode == "" {
-		mode = "auto"
-	}
-	if mode == "random" {
+func connectNeuralController(ctx context.Context, logger *slog.Logger, config appconfig.Config) *neural.Controller {
+	if config.ControllerMode == "random" {
 		logger.Info("using random controller")
 		return nil
 	}
 
-	root, err := os.Getwd()
-	if err != nil {
-		logger.Error("resolve working directory", "error", err)
-		return nil
-	}
-	python := filepath.Join(root, ".venv-neural", "bin", "python")
-	if runtime.GOOS == "windows" {
-		python = filepath.Join(root, ".venv-neural", "Scripts", "python.exe")
-	}
 	controller, err := neural.NewController(ctx, neural.Config{
-		Python:         envOr("FLYSWATTER_PYTHON", python),
-		WorkerScript:   filepath.Join(root, "neural_worker", "worker.py"),
-		StonkflySource: filepath.Join(root, "third_party", "stonkfly"),
-		DataDir:        envOr("STONKFLY_DATA", filepath.Join(root, ".local", "malecns")),
-		StartupTimeout: 2 * time.Minute,
-		StepDurationMS: 2,
+		Python:         config.Python,
+		WorkerScript:   config.WorkerScript,
+		StonkflySource: config.StonkflySource,
+		DataDir:        config.DataDir,
+		StartupTimeout: config.NeuralStartupTimeout,
+		StepDurationMS: config.NeuralStepMS,
 	})
 	if err == nil {
 		logger.Info("using MaleCNS controller")
 		return controller
 	}
-	if mode == "malecns" {
+	if config.ControllerMode == "malecns" {
 		logger.Error("MaleCNS controller required but unavailable", "error", err)
 		os.Exit(1)
 	}
 	logger.Warn("MaleCNS unavailable; using random controller", "error", err)
 	return nil
-}
-
-func address() string {
-	return envOr("FLYSWATTER_ADDR", "127.0.0.1:8080")
-}
-
-func envOr(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
 }

@@ -150,7 +150,7 @@ h1 span {
 }
 
 .game-canvas--striking {
-  animation: impact-jolt 75ms ease-out;
+  animation: impact-jolt var(--strike-duration) ease-out;
 }
 
 .canvas-placeholder {

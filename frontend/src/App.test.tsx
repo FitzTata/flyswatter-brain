@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { UI_CONFIG } from './config'
 
 class MockWebSocket {
   static readonly OPEN = 1
@@ -106,7 +107,7 @@ describe('App', () => {
 
     act(() => {
       socket.onmessage?.(new MessageEvent('message', { data: '{"type":"error","error":"done"}' }))
-      vi.advanceTimersByTime(20)
+      vi.advanceTimersByTime(UI_CONFIG.gameStepIntervalMS)
     })
     expect(socket.send).toHaveBeenCalledTimes(2)
   })

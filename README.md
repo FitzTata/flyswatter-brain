@@ -66,6 +66,15 @@ go run ./cmd/server
 
 The server listens on `127.0.0.1:8080` by default. Set `FLYSWATTER_ADDR` to override it.
 
+Runtime behavior is configured through environment variables:
+
+- `FLYSWATTER_GAME_STEP_MS`, `FLYSWATTER_FLY_SPEED`, `FLYSWATTER_FLY_RADIUS`
+- `FLYSWATTER_SWATTER_RADIUS`, `FLYSWATTER_TURN_DEGREES`, `FLYSWATTER_ESCAPE_MULTIPLIER`
+- `FLYSWATTER_NEURAL_STEP_MS`, `FLYSWATTER_NEURAL_STARTUP_TIMEOUT`
+- `FLYSWATTER_CONTROLLER`, `FLYSWATTER_RUNS_DIR`, `FLYSWATTER_PYTHON`, `STONKFLY_DATA`
+
+Invalid numeric values fail startup instead of silently falling back. Browser timing and visual constants live in `frontend/src/config.ts`.
+
 Run the backend checks:
 
 ```sh

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_CONFIG } from './config'
 import { GameCanvas } from './GameCanvas'
 
 describe('GameCanvas', () => {
@@ -29,7 +30,7 @@ describe('GameCanvas', () => {
 
     fireEvent.pointerDown(canvas, { clientX: 400, clientY: 260, pointerId: 1 })
     fireEvent.pointerDown(canvas, { clientX: 400, clientY: 260, pointerId: 1 })
-    vi.advanceTimersByTime(75)
+    vi.advanceTimersByTime(UI_CONFIG.strikeDurationMS)
 
     expect(onInputChange).toHaveBeenCalledTimes(2)
     expect(onInputChange).toHaveBeenNthCalledWith(1, {

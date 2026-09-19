@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import { UI_CONFIG } from './config'
 import { GameCanvas } from './GameCanvas'
 import { NeuralGraph } from './NeuralGraph'
 import type { GameInput } from './types'
@@ -8,7 +9,7 @@ import { useGameSocket } from './useGameSocket'
 const initialInput: GameInput = {
   swatter_position: { x: 0.75, y: 0.25 },
   attacking: false,
-  arena_aspect_ratio: 2,
+  arena_aspect_ratio: UI_CONFIG.defaultArenaAspectRatio,
 }
 
 function App() {

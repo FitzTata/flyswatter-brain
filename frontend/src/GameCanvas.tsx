@@ -1,4 +1,5 @@
-import { useEffect, useRef, type PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
+import { UI_CONFIG } from './config'
 import type { GameInput, Snapshot, Vec2 } from './types'
 
 interface GameCanvasProps {
@@ -7,12 +8,10 @@ interface GameCanvasProps {
   onInputChange: (input: GameInput) => void
 }
 
-const strikeDurationMS = 75
-
 export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const positionRef = useRef(input.swatter_position)
-  const aspectRatioRef = useRef(input.arena_aspect_ratio ?? 2)
+  const aspectRatioRef = useRef(input.arena_aspect_ratio ?? UI_CONFIG.defaultArenaAspectRatio)
   const strikeActiveRef = useRef(false)
   const strikeLockedRef = useRef(false)
   const strikeTimerRef = useRef<number | undefined>(undefined)
@@ -75,7 +74,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
         attacking: false,
         arena_aspect_ratio: aspectRatioRef.current,
       })
-    }, strikeDurationMS)
+    }, UI_CONFIG.strikeDurationMS)
   }
 
   const release = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -100,6 +99,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     <canvas
       ref={canvasRef}
       className={`game-canvas ${input.attacking ? 'game-canvas--striking' : ''}`}
+      style={{ '--strike-duration': `${UI_CONFIG.strikeDurationMS}ms` } as CSSProperties}
       aria-label="Fly arena. Move the pointer to aim and click to strike."
       onPointerMove={updatePosition}
       onPointerDown={strike}
@@ -226,7 +226,7 @@ function drawSwatter(
   context.shadowColor = input.attacking ? '#ff512f' : 'rgba(255, 112, 67, 0.45)'
   context.shadowBlur = input.attacking ? 18 : 7
   context.beginPath()
-  context.ellipse(0, 0, size * 0.78, size, 0, 0, Math.PI * 2)
+  context.ellipse(0, 0, size * UI_CONFIG.swatterWidthRatio, size, 0, 0, Math.PI * 2)
   context.fill()
   context.stroke()
 

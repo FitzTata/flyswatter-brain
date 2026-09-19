@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { UI_CONFIG } from './config'
 import { decodeServerMessage, type ConnectionStatus, type GameInput, type Snapshot } from './types'
-
-const stepIntervalMS = 20
 
 export interface GameSocketState {
   status: ConnectionStatus
@@ -81,7 +80,7 @@ export function useGameSocket(input: GameInput): GameSocketState {
       } catch {
         inFlightRef.current = false
       }
-    }, stepIntervalMS)
+    }, UI_CONFIG.gameStepIntervalMS)
 
     return () => {
       active = false
