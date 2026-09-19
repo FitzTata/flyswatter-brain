@@ -34,7 +34,7 @@ export function GameCanvas({ snapshot, input, onInputChange }: GameCanvasProps) 
     if (snapshot) {
       drawFly(context, snapshot, width, height)
     }
-    drawSwatter(context, input, snapshot?.swatter.radius ?? 0.09, width, height, swingPhase)
+    drawSwatter(context, input, snapshot?.swatter.radius ?? 0.085, width, height, swingPhase)
 
     if (snapshot && !snapshot.alive) {
       context.fillStyle = 'rgba(255, 81, 47, 0.14)'

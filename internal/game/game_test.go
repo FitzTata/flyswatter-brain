@@ -42,10 +42,10 @@ func TestGameStep(t *testing.T) {
 		wantSpeed       float64
 		wantMinTravel   float64
 	}{
-		{name: "straight", action: ActionStraight, wantHeadingDelta: 0, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "left", action: ActionTurnLeft, wantHeadingDelta: -math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "right", action: ActionTurnRight, wantHeadingDelta: math.Pi / 12, wantSpeed: 0.28, wantMinTravel: 0.005},
-		{name: "escape", action: ActionEscape, wantHeadingDelta: 0, wantSpeed: 0.672, wantMinTravel: 0.013},
+		{name: "straight", action: ActionStraight, wantHeadingDelta: 0, wantSpeed: 0.42, wantMinTravel: 0.008},
+		{name: "left", action: ActionTurnLeft, wantHeadingDelta: -math.Pi / 12, wantSpeed: 0.42, wantMinTravel: 0.008},
+		{name: "right", action: ActionTurnRight, wantHeadingDelta: math.Pi / 12, wantSpeed: 0.42, wantMinTravel: 0.008},
+		{name: "escape", action: ActionEscape, wantHeadingDelta: 0, wantSpeed: 1.092, wantMinTravel: 0.02},
 	}
 
 	for _, tt := range tests {
@@ -196,8 +196,8 @@ func TestGameRestoresCheckpointWithoutTransientState(t *testing.T) {
 		Alive:      true,
 		SurvivalMS: 840,
 		LastAction: ActionTurnLeft,
-		Fly:        Fly{Position: Vec2{X: 0.3, Y: 0.4}, Heading: 1, Speed: 0.28, Radius: 0.025},
-		Swatter:    Swatter{Position: Vec2{X: 0.8, Y: 0.2}, Radius: 0.09, Attacking: true},
+		Fly:        Fly{Position: Vec2{X: 0.3, Y: 0.4}, Heading: 1, Speed: 0.42, Radius: 0.025},
+		Swatter:    Swatter{Position: Vec2{X: 0.8, Y: 0.2}, Radius: 0.085, Attacking: true},
 		NeuralActivity: &NeuralActivity{
 			Model: "stale",
 		},

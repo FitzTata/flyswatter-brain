@@ -114,11 +114,11 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		StepSeconds:        0.02,
-		FlySpeed:           0.28,
+		FlySpeed:           0.42,
 		FlyRadius:          0.025,
-		SwatterRadius:      0.09,
+		SwatterRadius:      0.085,
 		TurnRadians:        math.Pi / 12,
-		EscapeMultiplier:   2.4,
+		EscapeMultiplier:   2.6,
 		SwingWindupSeconds: 0.14,
 		SwingActiveSeconds: 0.08,
 	}
