@@ -136,6 +136,34 @@ h1 span {
   cursor: not-allowed;
 }
 
+.player-gate__card .github-link {
+  justify-self: start;
+  margin-top: 2px;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  transition: color 120ms ease;
+}
+
+.github-link:hover,
+.github-link:focus-visible {
+  color: var(--acid);
+}
+
+.github-link__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .mode-picker {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -533,8 +561,13 @@ h1 span {
   color: var(--muted);
 }
 
-.disclosure p {
+.disclosure__body {
+  display: grid;
+  gap: 10px;
   max-width: 760px;
+}
+
+.disclosure p {
   margin: 0;
   letter-spacing: 0;
   line-height: 1.55;

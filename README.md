@@ -2,6 +2,8 @@
 
 Browser game where a simulated fruit-fly connectome (MaleCNS) steers a virtual fly while you try to hit it with a flyswatter.
 
+![Fly vs Flyswatter arena](docs/arena.png)
+
 ## What you get
 
 - Mouse-aimed flyswatter with wind-up strikes and light inertia
